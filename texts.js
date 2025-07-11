@@ -52,7 +52,7 @@ setup: {
 <li>Переносим папку "WSocks-VPN--NekoBox--main" из zip архива в любое удобное место (на рабочий стол).</li>
 <li>Запускаем "WSocks VPN.exe" от имени администратора.</li>
 <li>Копируем ключ подключения:<br>
-👉🏿<pre><code class="clickable-key" onclick="navigator.clipboard.writeText(this.innerText).then(() => alert('Ключ скопирован')).catch(err => console.error('Ошибка:', err))"><span class="clickable-manual">${key}</span></code></pre> 👈🏿
+<pre><code class="clickable-key" onclick="navigator.clipboard.writeText(this.innerText).then(() => alert('Ключ скопирован')).catch(err => console.error('Ошибка:', err))"><span class="clickable-manual">${key}</span></code></pre>
 </li>
 <li>Возвращаемся в WSocks VPN и нажимаем сочетание клавиш "Ctrl + V".</li>
 <li>Кликаем на подписку и на клавиатуре нажимаем "Enter".</li>
@@ -103,7 +103,7 @@ manualAndroidTV: {
 <li>Нажимаем на кнопку "Управление".</li>
 <li>В появившемся меню выбираем "Ручной ввод".</li>
 <li>В появившееся окно вставляем ключ используя окно взаимодействия в телефоне.<br>
-<pre><code>👉🏿 <span class="clickable-key" onclick="navigator.clipboard.writeText(this.innerText).then(() => alert('Ключ скопирован')).catch(err => console.error('Ошибка:', err))">${key}</span> 👈🏿</code></pre>
+<pre><code><span class="clickable-key" onclick="navigator.clipboard.writeText(this.innerText).then(() => alert('Ключ скопирован')).catch(err => console.error('Ошибка:', err))">${key}</span></code></pre>
 </li>
 <li>В плашке "Запрос на подключение" нажимаем "Ок"</li>
 </ul><br>
