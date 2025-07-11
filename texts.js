@@ -52,7 +52,7 @@ export const TEXTS = {
 <li>Переносим папку "WSocks-VPN--NekoBox--main" из zip архива в любое удобное место (на рабочий стол).</li>
 <li>Запускаем "WSocks VPN.exe" от имени администратора.</li>
 <li>Копируем ключ подключения:<br>
-<pre><code>👉🏿 <span class="clickable-manual">${key}</span> 👈🏿</code></pre>
+👉🏿<code> ${key} </code>👈🏿
 </li>
 <li>Возвращаемся в WSocks VPN и нажимаем сочетание клавиш "Ctrl + V".</li>
 <li>Кликаем на подписку и на клавиатуре нажимаем "Enter".</li>
