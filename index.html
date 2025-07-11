@@ -11,30 +11,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Oswald:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   <script>
-    window.TEXTS = {
-      setup: {
-        manualPC: {
-          title: 'Настройка для ПК',
-          content: (sub) => `Инструкция для настройки на ПК с email: ${sub.email}`
-        },
-        manualAndroid: {
-          title: 'Настройка для Android',
-          content: 'Инструкция для настройки на Android'
-        },
-        manualIOS: {
-          title: 'Настройка для iOS',
-          content: 'Инструкция для настройки на iOS'
-        },
-        manualAndroidTV: {
-          title: 'Настройка для Android TV',
-          content: (sub) => `Инструкция для настройки на Android TV с email: ${sub.email}`
-        }
-      },
-      terms: {
-        title: 'Пользовательское соглашение',
-        content: 'Текст пользовательского соглашения'
-      }
-    };
+    import { TEXTS } from './texts.js';
+    window.TEXTS = TEXTS;
   </script>
   <style>
     :root[data-theme="dark"] {
