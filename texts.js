@@ -52,7 +52,7 @@ setup: {
 <li>Переносим папку "WSocks-VPN--NekoBox--main" из zip архива в любое удобное место (на рабочий стол).</li>
 <li>Запускаем "WSocks VPN.exe" от имени администратора.</li>
 <li>Копируем ключ подключения:<br>
-👉🏿 <code class="clickable-key" onclick="navigator.clipboard.writeText(this.innerText).then(() => alert('Ключ скопирован')).catch(err => console.error('Ошибка:', err))">${key}</code> 👈🏿
+👉🏿<pre><code class="clickable-key" onclick="navigator.clipboard.writeText(this.innerText).then(() => alert('Ключ скопирован')).catch(err => console.error('Ошибка:', err))"><span class="clickable-manual">${key}</span></code></pre> 👈🏿
 </li>
 <li>Возвращаемся в WSocks VPN и нажимаем сочетание клавиш "Ctrl + V".</li>
 <li>Кликаем на подписку и на клавиатуре нажимаем "Enter".</li>
