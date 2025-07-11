@@ -11,8 +11,30 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Oswald:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   <script>
-    import { TEXTS } from './texts.js';
-    window.TEXTS = TEXTS;
+    window.TEXTS = {
+      setup: {
+        manualPC: {
+          title: 'Настройка для ПК',
+          content: (sub) => `Инструкция для настройки на ПК с email: ${sub.email}`
+        },
+        manualAndroid: {
+          title: 'Настройка для Android',
+          content: 'Инструкция для настройки на Android'
+        },
+        manualIOS: {
+          title: 'Настройка для iOS',
+          content: 'Инструкция для настройки на iOS'
+        },
+        manualAndroidTV: {
+          title: 'Настройка для Android TV',
+          content: (sub) => `Инструкция для настройки на Android TV с email: ${sub.email}`
+        }
+      },
+      terms: {
+        title: 'Пользовательское соглашение',
+        content: 'Текст пользовательского соглашения'
+      }
+    };
   </script>
   <style>
     :root[data-theme="dark"] {
@@ -192,7 +214,7 @@
 
     .subscription {
       background: #2a2a2a;
-      backdrop-filter: var(--glass-blur);
+      backdrop-filter    backdrop-filter: var(--glass-blur);
       box-shadow: none;
       border-radius: 12px;
       padding: 20px;
@@ -1620,89 +1642,129 @@
         ]);
       };
 
-      const renderSetup = () =>
-        h('div', { className: 'container' }, [
-          Header({ title: 'Инструкция', onBack: () => setView('subscriptions') }),
-          h('div', { className: 'content' }, [
-            error && h('p', { className: 'error' }, error),
-            error && h('button', { className: 'button button-primary', onClick: () => handleRetry(() => setView('setup')) }, 'Повторить'),
-            error && h('button', { className: 'button button-secondary', onClick: () => setView('subscriptions') }, 'Назад'),
-            !error && h('p', { className: 'card' }, [h('b', null, 'Email: '), selectedSub.email]),
-            !error && h('button', { className: 'button button-primary', onClick: () => setView('manualPC'), disabled: loading }, [
-              h('span', { className: 'button-icon' }, '💻'),
-              window.TEXTS.setup.manualPC.title,
-            ]),
-            !error && h('button', { className: 'button button-primary', onClick: () => setView('manualAndroid'), disabled: loading }, [
-              h('span', { className: 'button-icon' }, '📱'),
-              window.TEXTS.setup.manualAndroid.title,
-            ]),
-            !error && h('button', { className: 'button button-primary', onClick: () => setView('manualIOS'), disabled: loading }, [
-              h('span', { className: 'button-icon' }, '🍏'),
-              window.TEXTS.setup.manualIOS.title,
-            ]),
-            !error && h('button', { className: 'button button-primary', onClick: () => setView('manualAndroidTV'), disabled: loading }, [
-              h('span', { className: 'button-icon' }, '📺'),
-              window.TEXTS.setup.manualAndroidTV.title,
-            ]),
-            !error && h('button', { className: 'button button-secondary', onClick: () => setView('subscriptions'), disabled: loading }, 'Назад'),
-          ]),
-        ]);
+      const renderSetup = () => {
+        const contentChildren = [];
 
-      const renderManualPC = () =>
-        h('div', { className: 'container' }, [
-          Header({ title: window.TEXTS.setup.manualPC.title, onBack: () => setView('setup') }),
-          h('div', { className: 'content' }, [
-            error && h('p', { className: 'error' }, error),
-            error && h('button', { className: 'button button-primary', onClick: () => handleRetry(() => setView('manualPC')) }, 'Повторить'),
-            error && h('button', { className: 'button button-secondary', onClick: () => setView('setup') }, 'Назад'),
-            !error && selectedSub && h('div', { className: 'card' }, [
-              h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualPC.content(selectedSub.sub_url) } })
-            ]),
-            !error && h('button', { className: 'button button-secondary', onClick: () => setView('setup'), disabled: loading }, 'Назад'),
-          ]),
-        ]);
+        if (error) {
+          contentChildren.push(
+            h('p', { className: 'error' }, error),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('setup')) }, 'Повторить'),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+          );
+        } else {
+          if (selectedSub) {
+            contentChildren.push(h('p', { className: 'card' }, [h('b', null, 'Email: '), selectedSub.email]));
+          }
+          contentChildren.push(
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualPC'), disabled: loading }, window.TEXTS.setup.manualPC.title),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualAndroid'), disabled: loading }, window.TEXTS.setup.manualAndroid.title),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualIOS'), disabled: loading }, window.TEXTS.setup.manualIOS.title),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualAndroidTV'), disabled: loading }, window.TEXTS.setup.manualAndroidTV.title),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+          );
+        }
 
-      const renderManualAndroid = () =>
-        h('div', { className: 'container' }, [
-          Header({ title: window.TEXTS.setup.manualAndroid.title, onBack: () => setView('setup') }),
-          h('div', { className: 'content' }, [
-            error && h('p', { className: 'error' }, error),
-            error && h('button', { className: 'button button-primary', onClick: () => handleRetry(() => setView('manualAndroid')) }, 'Повторить'),
-            error && h('button', { className: 'button button-secondary', onClick: () => setView('setup') }, 'Назад'),
-            !error && h('div', { className: 'card' }, [
+        return h('div', { className: 'container' }, [
+          Header({ title: 'Настройка' }),
+          h('div', { className: 'content' }, contentChildren)
+        ]);
+      };
+
+      const renderManualPC = () => {
+        const contentChildren = [];
+
+        if (error) {
+          contentChildren.push(
+            h('p', { className: 'error' }, error),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('manualPC')) }, 'Повторить'),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+          );
+        } else if (selectedSub) {
+          contentChildren.push(
+            h('div', { className: 'card' }, [
+              h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualPC.content(selectedSub) } })
+            ]),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+          );
+        }
+
+        return h('div', { className: 'container' }, [
+          Header({ title: window.TEXTS.setup.manualPC.title }),
+          h('div', { className: 'content' }, contentChildren)
+        ]);
+      };
+
+      const renderManualAndroid = () => {
+        const contentChildren = [];
+
+        if (error) {
+          contentChildren.push(
+            h('p', { className: 'error' }, error),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('manualAndroid')) }, 'Повторить'),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+          );
+        } else {
+          contentChildren.push(
+            h('div', { className: 'card' }, [
               h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualAndroid.content } })
             ]),
-            !error && h('button', { className: 'button button-secondary', onClick: () => setView('setup'), disabled: loading }, 'Назад'),
-          ]),
-        ]);
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+          );
+        }
 
-      const renderManualIOS = () =>
-        h('div', { className: 'container' }, [
-          Header({ title: window.TEXTS.setup.manualIOS.title, onBack: () => setView('setup') }),
-          h('div', { className: 'content' }, [
-            error && h('p', { className: 'error' }, error),
-            error && h('button', { className: 'button button-primary', onClick: () => handleRetry(() => setView('manualIOS')) }, 'Повторить'),
-            error && h('button', { className: 'button button-secondary', onClick: () => setView('setup') }, 'Назад'),
-            !error && h('div', { className: 'card' }, [
+        return h('div', { className: 'container' }, [
+          Header({ title: window.TEXTS.setup.manualAndroid.title }),
+          h('div', { className: 'content' }, contentChildren)
+        ]);
+      };
+
+      const renderManualIOS = () => {
+        const contentChildren = [];
+
+        if (error) {
+          contentChildren.push(
+            h('p', { className: 'error' }, error),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('manualIOS')) }, 'Повторить'),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+          );
+        } else {
+          contentChildren.push(
+            h('div', { className: 'card' }, [
               h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualIOS.content } })
             ]),
-            !error && h('button', { className: 'button button-secondary', onClick: () => setView('setup'), disabled: loading }, 'Назад'),
-          ]),
-        ]);
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+          );
+        }
 
-      const renderManualAndroidTV = () =>
-        h('div', { className: 'container' }, [
-          Header({ title: window.TEXTS.setup.manualAndroidTV.title, onBack: () => setView('setup') }),
-          h('div', { className: 'content' }, [
-            error && h('p', { className: 'error' }, error),
-            error && h('button', { className: 'button button-primary', onClick: () => handleRetry(() => setView('manualAndroidTV')) }, 'Повторить'),
-            error && h('button', { className: 'button button-secondary', onClick: () => setView('setup') }, 'Назад'),
-            !error && selectedSub && h('div', { className: 'card' }, [
+        return h('div', { className: 'container' }, [
+          Header({ title: window.TEXTS.setup.manualIOS.title }),
+          h('div', { className: 'content' }, contentChildren)
+        ]);
+      };
+
+      const renderManualAndroidTV = () => {
+        const contentChildren = [];
+
+        if (error) {
+          contentChildren.push(
+            h('p', { className: 'error' }, error),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('manualAndroidTV')) }, 'Повторить'),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+          );
+        } else if (selectedSub) {
+          contentChildren.push(
+            h('div', { className: 'card' }, [
               h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualAndroidTV.content(selectedSub) } })
             ]),
-            !error && h('button', { className: 'button button-secondary', onClick: () => setView('setup'), disabled: loading }, 'Назад'),
-          ]),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+          );
+        }
+
+        return h('div', { className: 'container' }, [
+          Header({ title: window.TEXTS.setup.manualAndroidTV.title }),
+          h('div', { className: 'content' }, contentChildren)
         ]);
+      };
 
       const renderInfo = () => {
         const contentChildren = [];
