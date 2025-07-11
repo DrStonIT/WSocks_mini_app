@@ -952,12 +952,12 @@
       const [selectedProduct, setSelectedProduct] = useState(null);
       const [selectedSection, setSelectedSection] = useState('All');
 
-      const API_URL = 'https://faithful-celestina-drstonit-ed3b0b61.koyeb.app';
+      const API_URL = 'https://wsocks-api-bot-git-65pa.onrender.com';
       const SUPPORT_LINK = 'https://t.me/WSocks_Support';
       const SUPPORT_HANDLE = '@WSocks_Support';
-      const BOT_USERNAME = '@penis2008bot';
+      const BOT_USERNAME = '@YourBot';
       const APP_DOWNLOAD_LINK = 'https://example.com/download';
-      const TELEGRAM_CHANNEL_LINK = 'https://t.me/WSocks_VPN';
+      const TELEGRAM_CHANNEL_LINK = 'https://t.me/WSocks_Channel';
 
       const axiosInstance = axios.create({ timeout: 0 });
 
@@ -1621,26 +1621,53 @@
       };
 
       const renderSetup = () => {
-        const contentChildren = [];
-
-        if (error) {
-          contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('setup')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
-          );
-        } else {
-          if (selectedSub) {
-            contentChildren.push(h('p', { className: 'card' }, [h('b', null, 'Email: '), selectedSub.email]));
-          }
-          contentChildren.push(
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualPC'), disabled: loading }, window.TEXTS.setup.manualPC.title),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualAndroid'), disabled: loading }, window.TEXTS.setup.manualAndroid.title),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualIOS'), disabled: loading }, window.TEXTS.setup.manualIOS.title),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualAndroidTV'), disabled: loading }, window.TEXTS.setup.manualAndroidTV.title),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
-          );
+        
+        if (!window.TEXTS) {
+          return h('div', { className: 'container' }, [
+            Header({ title: 'Настройка' }),
+            h('div', { className: 'content' }, [
+              h('p', { className: 'error' }, 'Тексты инструкций не загружены'),
+              h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            ])
+          ]);
         }
+        if (!selectedSub) {
+          return h('div', { className: 'container' }, [
+            Header({ title: 'Настройка' }),
+            h('div', { className: 'content' }, [
+              h('p', { className: 'error' }, 'Подписка не выбрана'),
+              h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            ])
+          ]);
+        }
+        return h('div', { className: 'container' }, [
+          Header({ title: 'Настройка' }),
+          h('div', { className: 'content' }, [
+            h('h3', null, 'Выберите платформу для инструкции'),
+            h('div', { className: 'button-row' }, [
+              h('button', { 
+                className: 'glass-button button-primary', 
+                onClick: () => navigate('manualPC') 
+              }, window.TEXTS.setup.manualPC.title),
+              h('button', { 
+                className: 'glass-button button-primary', 
+                onClick: () => navigate('manualAndroid') 
+              }, window.TEXTS.setup.manualAndroid.title),
+              h('button', { 
+                className: 'glass-button button-primary', 
+                onClick: () => navigate('manualIOS') 
+              }, window.TEXTS.setup.manualIOS.title),
+              h('button', { 
+                className: 'glass-button button-primary', 
+                onClick: () => navigate('manualAndroidTV') 
+              }, window.TEXTS.setup.manualAndroidTV.title)
+            ]),
+            h('button', { 
+              className: 'glass-button button-secondary no-shine', 
+              onClick: goBack 
+            }, 'Назад')
+          ])
+        ]);
 
         return h('div', { className: 'container' }, [
           Header({ title: 'Настройка' }),
