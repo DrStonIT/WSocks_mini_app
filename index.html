@@ -425,12 +425,12 @@
 
     .clickable-key {
       cursor: pointer;
-      background-color: #575353;
+      background-color: #3d3d3d;
       padding: 2px 5px;
       border-radius: 3px;
     }
     .clickable-key:hover {
-      background-color: #2c2c2c;
+      background-color: #131313;
     }
 
     .no-shine::before {
@@ -1658,6 +1658,9 @@
         ]);
       };
 
+
+      
+      
       const renderManualPC = () => {
         const contentChildren = [];
 
@@ -1672,6 +1675,7 @@
             h('div', { className: 'card' }, [
               h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualPC.content(selectedSub.sub_url) } })
             ]),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://example.com/download-pc') }, 'Скачать'),
             h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
           );
         }
@@ -1696,6 +1700,8 @@
             h('div', { className: 'card' }, [
               h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualAndroid.content } })
             ]),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://example.com/download-android') }, 'Скачать'),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://example.com/import-android') }, 'Импортировать'),
             h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
           );
         }
@@ -1720,6 +1726,8 @@
             h('div', { className: 'card' }, [
               h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualIOS.content } })
             ]),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://example.com/download-ios') }, 'Скачать'),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://example.com/import-ios') }, 'Импортировать'),
             h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
           );
         }
@@ -1744,6 +1752,7 @@
             h('div', { className: 'card' }, [
               h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualAndroidTV.content(selectedSub.sub_url) } })
             ]),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://example.com/download-androidtv') }, 'Скачать'),
             h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
           );
         }
