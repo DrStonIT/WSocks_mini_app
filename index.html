@@ -1023,18 +1023,18 @@
           setLoading(false);
           return;
         }
-
+      
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         const initData = Telegram.WebApp.initData;
         console.log('InitData:', initData);
-
+      
         if (!initData) {
           setError('Не удалось получить initData');
           setLoading(false);
           return;
         }
-
+      
         setLoading(true);
         axiosInstance.post(`${API_URL}/api/auth`, { init_data: initData }, {
           headers: { 'Cache-Control': 'no-cache' }
@@ -1042,11 +1042,20 @@
           .then(({ data }) => {
             console.log('Ответ авторизации:', data);
             setUser(data.user);
+            // Загружаем подписки после успешной авторизации
+            return axiosInstance.get(`${API_URL}/api/subscriptions?tg_id=${data.user.telegram_id}`, {
+              headers: { 'Cache-Control': 'no-cache' }
+            });
+          })
+          .then(({ data }) => {
+            console.log('Ответ подписок:', data);
+            setSubscriptions(data.subscriptions || []);
             setLoading(false);
           })
           .catch(err => {
-            console.error('Ошибка авторизации:', err);
-            setError(`Ошибка авторизации: ${err.response?.data?.detail || err.message}`);
+            console.error('Ошибка:', err);
+            const errorMessage = err.response?.data?.detail || err.message;
+            setError(`Ошибка: ${errorMessage}`);
             setLoading(false);
           });
       }, []);
