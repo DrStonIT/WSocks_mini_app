@@ -1276,8 +1276,8 @@
                 : [
                     ...subscriptions.map((sub, index) => {
                       const isExpired = sub.is_expired;
-                      const daysRemaining = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
-                      const daysDisplay = daysRemaining < -8 ? '∞' : `${daysRemaining} дней`;
+                      const daysRemaining = Math.max(0, Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)));
+                      const daysDisplay = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)) < -8 ? '∞' : `${daysRemaining} дней`;
                       return h('div', { key: `vpn-${index}`, className: 'subscription' }, [
                         h('h3', null, [
                           h('i', { className: 'fas fa-key', style: { marginRight: '4px' } }),
@@ -1593,7 +1593,7 @@
         } else {
           if (selectedSub) {
             contentChildren.push(
-              h('p', { className: 'card' }, [h('b', null, 'Email: '), `#${selectedSub.email.split('-').pop()}` ]),
+              h('p', { className: 'card' }, [h('b', null, 'Подключение '), `#${selectedSub.email.split('-').pop()}` ]),
               h('p', { className: 'card' }, [h('b', null, 'Текущая дата окончания: '), new Date(selectedSub.expiry_date).toLocaleString()])
             );
           }
@@ -1705,7 +1705,7 @@
           );
         } else {
           if (selectedSub) {
-            contentChildren.push(h('p', { className: 'card' }, [h('b', null, 'Email: '), `#${selectedSub.email.split('-').pop()}` ]));
+            contentChildren.push(h('p', { className: 'card' }, [h('b', null, 'Подключение '), `#${selectedSub.email.split('-').pop()}` ]));
           }
           contentChildren.push(
             h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualPC'), disabled: loading }, window.TEXTS.setup.manualPC.title),
