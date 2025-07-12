@@ -1593,7 +1593,7 @@
         } else {
           if (selectedSub) {
             contentChildren.push(
-              h('p', { className: 'card' }, [h('b', null, 'Email: '), selectedSub.email]),
+              h('p', { className: 'card' }, [h('b', null, 'Email: '), `#${selectedSub.email.split('-').pop()}` ]),
               h('p', { className: 'card' }, [h('b', null, 'Текущая дата окончания: '), new Date(selectedSub.expiry_date).toLocaleString()])
             );
           }
@@ -1705,7 +1705,7 @@
           );
         } else {
           if (selectedSub) {
-            contentChildren.push(h('p', { className: 'card' }, [h('b', null, 'Email: '), selectedSub.email]));
+            contentChildren.push(h('p', { className: 'card' }, [h('b', null, 'Email: '), `#${selectedSub.email.split('-').pop()}` ]));
           }
           contentChildren.push(
             h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualPC'), disabled: loading }, window.TEXTS.setup.manualPC.title),
