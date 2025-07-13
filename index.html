@@ -1747,16 +1747,20 @@
             h('p', { className: 'error' }, error),
             h('button', { className: 'glass-button button-primary no-shine', onClick: () => {
               setError(null);
-              activateSubscription(paymentData.days, paymentData.isExtension, paymentData.email, `retry-${Date.now()}`);
+              if (paymentData && paymentData.days && paymentData.email) {
+                activateSubscription(paymentData.days, paymentData.isExtension, paymentData.email, `retry-${Date.now()}`);
+              } else {
+                setError('Недостаточно данных для повторной попытки');
+              }
             }}, 'Повторить'),
             h('button', { className: 'glass-button button-danger no-shine', onClick: () => {
               setPaymentData(null);
               setPaymentStatus(null);
               localStorage.removeItem('paymentData');
               goBack();
-            }}, 'Отмена')
+            }, disabled: loading }, 'Отмена')
           );
-        } else if (paymentData) {
+        } else if (paymentData && paymentData.payment_id && paymentData.days && paymentData.email && paymentData.amount) {
           contentChildren.push(
             h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
             h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), paymentData.email]),
@@ -1772,7 +1776,8 @@
           );
         } else {
           contentChildren.push(
-            h('p', { className: 'card' }, 'Нет данных о платеже. Пожалуйста, вернитесь назад и попробуйте снова.')
+            h('p', { className: 'card' }, 'Нет данных о платеже. Пожалуйста, вернитесь назад и попробуйте снова.'),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
           );
         }
         return h('div', { className: 'container' }, [
