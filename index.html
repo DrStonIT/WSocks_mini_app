@@ -1533,8 +1533,8 @@
           } else {
             subscriptions.forEach((sub, index) => {
               const isExpired = sub.is_expired;
-              const daysRemaining = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
-              const daysDisplay = daysRemaining < -8 ? '∞' : `${daysRemaining} дней`;
+              const daysRemaining = Math.max(0, Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)));
+              const daysDisplay = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)) < -8 ? '∞' : `${daysRemaining} дней`;
               const cardChildren = [
                 h('h3', null, [
                   h('i', { className: 'fas fa-key', style: { marginRight: '4px' } }),
