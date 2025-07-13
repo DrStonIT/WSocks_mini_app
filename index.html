@@ -2000,13 +2000,104 @@
                 h('div', null, [
                   h('h3', null, product.name),
                   h('p', null, product.description),
-                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product) }, 'Купить')
+                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => {setSelectedProduct(product); navigate('checkout'); }}, 'Купить')
                 ])
               ])
             ))),
             h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
           ])
         ]);
+      };
+
+      const renderCheckout = () => {
+        const contentChildren = [];
+
+        if (error) {
+          contentChildren.push(
+            h('p', { className: 'error' }, error),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(handleSubmitOrder) }, 'Повторить'),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+          );
+        } else if (selectedProduct) {
+          contentChildren.push(
+            h('div', { className: 'card' }, [
+              h('h3', null, `Оформление заказа: ${selectedProduct.name}`),
+              h('p', null, selectedProduct.description),
+              h('input', {
+                type: 'text',
+                className: 'search-bar',
+                placeholder: 'Логин',
+                value: login,
+                onChange: (e) => setLogin(e.target.value),
+                style: { marginTop: '10px' }
+              }),
+              h('input', {
+                type: 'password',
+                className: 'search-bar',
+                placeholder: 'Пароль',
+                value: password,
+                onChange: (e) => setPassword(e.target.value),
+                style: { marginTop: '10px' }
+              }),
+              h('button', {
+                className: 'glass-button button-success no-shine',
+                onClick: handleSubmitOrder,
+                disabled: loading || !login || !password,
+                style: { marginTop: '20px' }
+              }, 'Оплатить'),
+              h('button', {
+                className: 'glass-button button-secondary no-shine',
+                onClick: () => {
+                  setSelectedProduct(null);
+                  setLogin('');
+                  setPassword('');
+                  goBack();
+                },
+                disabled: loading,
+                style: { marginTop: '10px' }
+              }, 'Назад')
+            ])
+          );
+        }
+
+        return h('div', { className: 'container' }, [
+          Header({ title: 'Оформление заказа' }),
+          h('div', { className: 'content' }, contentChildren)
+        ]);
+      };
+
+      const handleSubmitOrder = async () => {
+        if (!login || !password) {
+          Telegram.WebApp.showAlert('Пожалуйста, заполните оба поля: Логин и Пароль');
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+          const response = await axiosInstance.post(`${API_URL}/api/submit-order`, {
+            telegram_id: user.telegram_id,
+            product: selectedProduct.name,
+            login,
+            password,
+          });
+
+          if (response.status === 200) {
+            Telegram.WebApp.showAlert('Заказ успешно отправлен!');
+            setSelectedProduct(null);
+            setLogin('');
+            setPassword('');
+            navigate('main');
+          } else {
+            setError('Ошибка при отправке заказа');
+          }
+        } catch (err) {
+          console.error('Ошибка отправки заказа:', err);
+          setError(`Ошибка отправки заказа: ${err.response?.data?.detail || err.message}`);
+        } finally {
+          setLoading(false);
+        }
       };
 
       const views = {
@@ -2028,7 +2119,8 @@
         subscription: renderSubscription,
         terms: renderTerms,
         privacy: renderPrivacy,
-        shop: renderShop
+        shop: renderShop,
+        checkout: renderCheckout
       };
 
       const contentChildren = [];
@@ -2050,21 +2142,6 @@
       return h('div', null, [
         contentChildren,
         viewStack.length > 0 && h('button', { className: 'circular-back-button', onClick: goBack }, '<'),
-        selectedProduct && h('div', { className: 'product-card-overlay', onClick: () => setSelectedProduct(null) }, [
-          h('div', { className: 'product-card-content', onClick: (e) => e.stopPropagation() }, [
-            h('img', { src: selectedProduct.image || 'https://picsum.photos/130', alt: selectedProduct.name, className: 'product-image' }),
-            h('div', { className: 'product-details' }, [
-              h('h2', null, selectedProduct.name),
-              h('p', null, selectedProduct.description),
-              h('button', { className: 'glass-button button-primary no-shine', onClick: () => {
-                setShopSubscriptions(prev => [...prev, selectedProduct]);
-                setSelectedProduct(null);
-                Telegram.WebApp.showAlert('Подписка добавлена!');
-              } }, 'Купить')
-            ])
-          ]),
-          h('button', { className: 'close-button', onClick: () => setSelectedProduct(null) }, '×')
-        ])
       ]);
     }
 
