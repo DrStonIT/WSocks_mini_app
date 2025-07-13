@@ -470,7 +470,7 @@
 
     @keyframes shine {
       0% { transform: translate(-100%, -100%) rotate(30deg); }
-      100% { transform: translate(100%, 100%) rotate(30deg); }
+      100% { transform: rareanslate(100%, 100%) rotate(30deg); }
     }
 
     .button-primary {
@@ -996,6 +996,8 @@
         const saved = localStorage.getItem('shopSubscriptions');
         return saved ? JSON.parse(saved) : [];
       });
+      const [login, setLogin] = useState('');
+      const [password, setPassword] = useState('');
 
       const API_URL = 'https://faithful-celestina-drstonit-ed3b0b61.koyeb.app';
       const SUPPORT_LINK = 'https://t.me/WSocks_Support';
@@ -1042,7 +1044,6 @@
           .then(({ data }) => {
             console.log('Ответ авторизации:', data);
             setUser(data.user);
-            // Загружаем подписки после успешной авторизации
             return axiosInstance.get(`${API_URL}/api/subscriptions?tg_id=${data.user.telegram_id}`, {
               headers: { 'Cache-Control': 'no-cache' }
             });
@@ -1213,7 +1214,7 @@
 
       const confirmActivation = async () => {
         if (!user || !paymentData) {
-          setError('Данные для активации отсутствуют');
+          setError('Данные для актива(unsigned)тивации отсутствуют');
           return;
         }
         setLoading(true);
@@ -1242,7 +1243,7 @@
       };
 
       const generateRequestId = () => {
-        return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        return `${Date.nowvalue.now()}_${Math.random().toString(36).substring(2, 11)}`;
       };
 
       const copyToClipboard = (text) => {
@@ -1256,6 +1257,40 @@
 
       const toggleAllSubscriptionsPanel = () => {
         setIsAllSubscriptionsOpen(!isAllSubscriptionsOpen);
+      };
+
+      const handleSubmitOrder = async () => {
+        if (!login || !password) {
+          Telegram.WebApp.showAlert('Пожалуйста, заполните оба поля: Логин и Пароль');
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+          const response = await axiosInstance.post(`${API_URL}/api/submit-order`, {
+            telegram_id: user.telegram_id,
+            product: selectedProduct.name,
+            login,
+            password,
+          });
+
+          if (response.status === 200) {
+            Telegram.WebApp.showAlert('Заказ успешно отправлен!');
+            setSelectedProduct(null);
+            setLogin('');
+            setPassword('');
+            navigate('main');
+          } else {
+            setError('Ошибка при отправке заказа');
+          }
+        } catch (err) {
+          console.error('Ошибка отправки заказа:', err);
+          setError(`Ошибка отправки заказа: ${err.response?.data?.detail || err.message}`);
+        } finally {
+          setLoading(false);
+        }
       };
 
       const Header = ({ title }) => {
@@ -1498,8 +1533,8 @@
           } else {
             subscriptions.forEach((sub, index) => {
               const isExpired = sub.is_expired;
-              const daysRemaining = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
-              const daysDisplay = daysRemaining < -8 ? '∞' : `${daysRemaining} дней`;
+              const daysRemaining = Math.max(0, Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)));
+              const daysDisplay = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)) < -8 ? '∞' : `${daysRemaining} дней`;
               const cardChildren = [
                 h('h3', null, [
                   h('i', { className: 'fas fa-key', style: { marginRight: '4px' } }),
@@ -1754,7 +1789,7 @@
           contentChildren.push(
             h('p', { className: 'error' }, error),
             h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('manualAndroid')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            h('button', { className: '88glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
           );
         } else {
           contentChildren.push(
@@ -1831,7 +1866,7 @@
           contentChildren.push(
             h('p', { className: 'error' }, error),
             h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('info')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
           );
         } else {
           contentChildren.push(
@@ -2000,7 +2035,14 @@
                 h('div', null, [
                   h('h3', null, product.name),
                   h('p', null, product.description),
-                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => {setSelectedProduct(product); navigate('checkout'); }}, 'Купить')
+                  h('button', { 
+                    className: 'glass-button button-primary no-shine', 
+                    style: { width: '100px' }, 
+                    onClick: () => { 
+                      setSelectedProduct(product); 
+                      navigate('checkout'); 
+                    } 
+                  }, 'Купить')
                 ])
               ])
             ))),
@@ -2012,51 +2054,34 @@
       const renderCheckout = () => {
         const contentChildren = [];
 
-        if (error) {
+        if (!selectedProduct) {
+          contentChildren.push(h('p', { className: 'error' }, 'Товар не выбран'));
+          contentChildren.push(h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад'));
+        } else {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(handleSubmitOrder) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
-          );
-        } else if (selectedProduct) {
-          contentChildren.push(
-            h('div', { className: 'card' }, [
-              h('h3', null, `Оформление заказа: ${selectedProduct.name}`),
-              h('p', null, selectedProduct.description),
-              h('input', {
-                type: 'text',
-                className: 'search-bar',
-                placeholder: 'Логин',
-                value: login,
-                onChange: (e) => setLogin(e.target.value),
-                style: { marginTop: '10px' }
+            h('h2', { className: 'text-xl font-bold mb-4' }, selectedProduct.name),
+            h('div', { className: 'flex flex-col gap-4' }, [
+              h('input', { 
+                type: 'text', 
+                placeholder: 'Логин', 
+                value: login, 
+                onChange: (e) => setLogin(e.target.value), 
+                className: 'p-2 border rounded' 
               }),
-              h('input', {
-                type: 'password',
-                className: 'search-bar',
-                placeholder: 'Пароль',
-                value: password,
-                onChange: (e) => setPassword(e.target.value),
-                style: { marginTop: '10px' }
+              h('input', { 
+                type: 'password', 
+                placeholder: 'Пароль', 
+                value: password, 
+                onChange: (e) => setPassword(e.target.value), 
+                className: 'p-2 border rounded' 
               }),
-              h('button', {
-                className: 'glass-button button-success no-shine',
-                onClick: handleSubmitOrder,
-                disabled: loading || !login || !password,
-                style: { marginTop: '20px' }
-              }, 'Оплатить'),
-              h('button', {
-                className: 'glass-button button-secondary no-shine',
-                onClick: () => {
-                  setSelectedProduct(null);
-                  setLogin('');
-                  setPassword('');
-                  goBack();
-                },
-                disabled: loading,
-                style: { marginTop: '10px' }
-              }, 'Назад')
-            ])
+              h('button', { 
+                className: 'glass-button button-success no-shine', 
+                onClick: handleSubmitOrder, 
+                disabled: loading || !login || !password 
+              }, 'Оплатить')
+            ]),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
           );
         }
 
@@ -2064,40 +2089,6 @@
           Header({ title: 'Оформление заказа' }),
           h('div', { className: 'content' }, contentChildren)
         ]);
-      };
-
-      const handleSubmitOrder = async () => {
-        if (!login || !password) {
-          Telegram.WebApp.showAlert('Пожалуйста, заполните оба поля: Логин и Пароль');
-          return;
-        }
-
-        setLoading(true);
-        setError(null);
-
-        try {
-          const response = await axiosInstance.post(`${API_URL}/api/submit-order`, {
-            telegram_id: user.telegram_id,
-            product: selectedProduct.name,
-            login,
-            password,
-          });
-
-          if (response.status === 200) {
-            Telegram.WebApp.showAlert('Заказ успешно отправлен!');
-            setSelectedProduct(null);
-            setLogin('');
-            setPassword('');
-            navigate('main');
-          } else {
-            setError('Ошибка при отправке заказа');
-          }
-        } catch (err) {
-          console.error('Ошибка отправки заказа:', err);
-          setError(`Ошибка отправки заказа: ${err.response?.data?.detail || err.message}`);
-        } finally {
-          setLoading(false);
-        }
       };
 
       const views = {
@@ -2142,6 +2133,17 @@
       return h('div', null, [
         contentChildren,
         viewStack.length > 0 && h('button', { className: 'circular-back-button', onClick: goBack }, '<'),
+        selectedProduct && view === 'shop' && h('div', { className: 'product-card-overlay', onClick: () => setSelectedProduct(null) }, [
+          h('div', { className: 'product-card-content', onClick: (e) => e.stopPropagation() }, [
+            h('img', { src: selectedProduct.image || 'https://picsum.photos/130', alt: selectedProduct.name, className: 'product-image' }),
+            h('div', { className: 'product-details' }, [
+              h('h2', null, selectedProduct.name),
+              h('p', null, selectedProduct.description),
+              h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => {setSelectedProduct(product);navigate('checkout'); } }, 'Купить')
+            ])
+          ]),
+          h('button', { className: 'close-button', onClick: () => setSelectedProduct(null) }, '×')
+        ])
       ]);
     }
 
