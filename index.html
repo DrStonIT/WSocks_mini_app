@@ -968,6 +968,8 @@
     function App() {
       const [user, setUser] = useState(null);
       const [view, setView] = useState('main');
+      const [login, setLogin] = useState('');
+      const [password, setPassword] = useState('');
       const [subscriptions, setSubscriptions] = useState([]);
       const [referrals, setReferrals] = useState([]);
       const [loading, setLoading] = useState(false);
@@ -2000,7 +2002,7 @@
                 h('div', null, [
                   h('h3', null, product.name),
                   h('p', null, product.description),
-                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product) }, 'Купить')
+                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => {setSelectedProduct(product);navigate('checkout');} }, 'Купить')
                 ])
               ])
             ))),
@@ -2141,18 +2143,7 @@
 
     return h('div', null, [
         contentChildren,
-        viewStack.length > 0 && h('button', { className: 'circular-back-button', onClick: goBack }, '<'),
-        selectedProduct && view === 'shop' && h('div', { className: 'product-card-overlay', onClick: () => setSelectedProduct(null) }, [
-          h('div', { className: 'product-card-content', onClick: (e) => e.stopPropagation() }, [
-            h('img', { src: selectedProduct.image || 'https://picsum.photos/130', alt: selectedProduct.name, className: 'product-image' }),
-            h('div', { className: 'product-details' }, [
-              h('h2', null, selectedProduct.name),
-              h('p', null, selectedProduct.description),
-              h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => {setSelectedProduct(product);navigate('checkout'); } }, 'Купить')
-            ])
-          ]),
-          h('button', { className: 'close-button', onClick: () => setSelectedProduct(null) }, '×')
-        ])
+        viewStack.length > 0 && h('button', { className: 'circular-back-button', onClick: goBack }, '<')
       ]);
     }
 
