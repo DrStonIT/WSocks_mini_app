@@ -1030,7 +1030,52 @@
           setLoading(false);
           return;
         }
-
+       useEffect(() => {
+        if (!paymentData || !paymentData.payment_id) {
+          return; // Выход, если paymentData или payment_id отсутствуют
+        }
+      
+        const interval = setInterval(async () => {
+          try {
+            // Проверяем, что paymentData все еще существует
+            if (!paymentData || !paymentData.payment_id) {
+              clearInterval(interval);
+              return;
+            }
+      
+            const response = await axiosInstance.post(`${API_URL}/api/check-payment-status`, { payment_id: paymentData.payment_id });
+            
+            // Проверяем, что response.data существует и имеет поле status
+            if (!response.data || typeof response.data.status !== 'string') {
+              throw new Error('Некорректный формат ответа сервера');
+            }
+      
+            if (response.data.status === 'succeeded') {
+              setPaymentStatus('succeeded');
+              // Проверяем, что данные для confirmActivation валидны
+              if (response.data.days && response.data.expiry_date) {
+                confirmActivation(response.data);
+              } else {
+                console.error('Недостаточно данных для активации:', response.data);
+                setError('Ошибка: Недостаточно данных для активации');
+              }
+              clearInterval(interval);
+            } else if (response.data.status === 'canceled' || response.data.status === 'failed') {
+              setPaymentStatus('failed');
+              setError('Платеж не удался. Пожалуйста, попробуйте снова.');
+              clearInterval(interval);
+            } else {
+              setPaymentStatus(response.data.status);
+            }
+          } catch (err) {
+            console.error('Ошибка проверки статуса платежа:', err);
+            setError(`Ошибка проверки статуса платежа: ${err.response?.data?.detail || err.message}`);
+            clearInterval(interval);
+          }
+        }, 5000);
+      
+        return () => clearInterval(interval);
+      }, [paymentData, confirmActivation]); // Добавляем confirmActivation в зависимости
 
 
         Telegram.WebApp.ready();
