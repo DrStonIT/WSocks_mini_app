@@ -2000,12 +2000,59 @@
                 h('div', null, [
                   h('h3', null, product.name),
                   h('p', null, product.description),
-                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product) }, 'Купить')
+                  h('button', { 
+                    className: 'glass-button button-primary no-shine', 
+                    style: { width: '100px' }, 
+                    onClick: () => { 
+                      setSelectedProduct(product); 
+                      navigate('checkout'); 
+                    } 
+                  }, 'Купить')
                 ])
               ])
             ))),
             h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
           ])
+        ]);
+      };
+
+      const renderCheckout = () => {
+        const contentChildren = [];
+
+        if (!selectedProduct) {
+          contentChildren.push(h('p', { className: 'error' }, 'Товар не выбран'));
+          contentChildren.push(h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад'));
+        } else {
+          contentChildren.push(
+            h('h2', { className: 'text-xl font-bold mb-4' }, selectedProduct.name),
+            h('div', { className: 'flex flex-col gap-4' }, [
+              h('input', { 
+                type: 'text', 
+                placeholder: 'Логин', 
+                value: login, 
+                onChange: (e) => setLogin(e.target.value), 
+                className: 'p-2 border rounded' 
+              }),
+              h('input', { 
+                type: 'password', 
+                placeholder: 'Пароль', 
+                value: password, 
+                onChange: (e) => setPassword(e.target.value), 
+                className: 'p-2 border rounded' 
+              }),
+              h('button', { 
+                className: 'glass-button button-success no-shine', 
+                onClick: handleSubmitOrder, 
+                disabled: loading || !login || !password 
+              }, 'Оплатить')
+            ]),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+          );
+        }
+
+        return h('div', { className: 'container' }, [
+          Header({ title: 'Оформление заказа' }),
+          h('div', { className: 'content' }, contentChildren)
         ]);
       };
 
