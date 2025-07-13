@@ -979,7 +979,6 @@
           const saved = localStorage.getItem('paymentData');
           if (!saved) return null;
           const parsed = JSON.parse(saved);
-          // Проверяем, что parsed содержит payment_id
           if (!parsed || !parsed.payment_id) {
             console.warn('Некорректные данные paymentData в localStorage:', parsed);
             localStorage.removeItem('paymentData');
@@ -988,16 +987,19 @@
           return parsed;
         } catch (err) {
           console.error('Ошибка чтения paymentData из localStorage:', err);
-          localStorage.removeItem('paymentData'); // Очищаем некорректные данные
+          localStorage.removeItem('paymentData');
           return null;
         }
       });
-
       const [paymentStatus, setPaymentStatus] = useState(null);
-
       const [selectedSub, setSelectedSub] = useState(() => {
-        const saved = localStorage.getItem('selectedSub');
-        return saved ? JSON.parse(saved) : null;
+        try {
+          const saved = localStorage.getItem('selectedSub');
+          return saved ? JSON.parse(saved) : null;
+        } catch (err) {
+          console.error('Ошибка чтения selectedSub из localStorage:', err);
+          return null;
+        }
       });
       const [selectedReferee, setSelectedReferee] = useState(null);
       const [processingActions, setProcessingActions] = useState({});
@@ -1012,8 +1014,13 @@
       const [selectedProduct, setSelectedProduct] = useState(null);
       const [selectedSection, setSelectedSection] = useState('All');
       const [shopSubscriptions, setShopSubscriptions] = useState(() => {
-        const saved = localStorage.getItem('shopSubscriptions');
-        return saved ? JSON.parse(saved) : [];
+        try {
+          const saved = localStorage.getItem('shopSubscriptions');
+          return saved ? JSON.parse(saved) : [];
+        } catch (err) {
+          console.error('Ошибка чтения shopSubscriptions из localStorage:', err);
+          return [];
+        }
       });
 
       const API_URL = 'https://unable-karisa-del-app-cebf6c42.koyeb.app';
@@ -1031,8 +1038,6 @@
         localStorage.setItem('selectedSub', JSON.stringify(selectedSub));
       }, [view, paymentData, selectedSub]);
 
-
-
       useEffect(() => {
         localStorage.setItem('shopSubscriptions', JSON.stringify(shopSubscriptions));
       }, [shopSubscriptions]);
@@ -1044,29 +1049,61 @@
           setLoading(false);
           return;
         }
-       useEffect(() => {
-        if (!paymentData || !paymentData.payment_id) {
-          return; // Выход, если paymentData или payment_id отсутствуют
+        try {
+          Telegram.WebApp.ready();
+          Telegram.WebApp.expand();
+          const initData = Telegram.WebApp.initData;
+          console.log('InitData:', initData);
+          if (!initData) {
+            setError('Не удалось получить initData');
+            setLoading(false);
+            return;
+          }
+          setLoading(true);
+          axiosInstance.post(`${API_URL}/api/auth`, { init_data: initData }, {
+            headers: { 'Cache-Control': 'no-cache' }
+          })
+            .then(({ data }) => {
+              console.log('Ответ авторизации:', data);
+              setUser(data.user);
+              return axiosInstance.get(`${API_URL}/api/subscriptions?tg_id=${data.user.telegram_id}`, {
+                headers: { 'Cache-Control': 'no-cache' }
+              });
+            })
+            .then(({ data }) => {
+              console.log('Ответ подписок:', data);
+              setSubscriptions(data.subscriptions || []);
+              setLoading(false);
+            })
+            .catch(err => {
+              console.error('Ошибка:', err);
+              const errorMessage = err.response?.data?.detail || err.message;
+              setError(`Ошибка: ${errorMessage}`);
+              setLoading(false);
+            });
+        } catch (err) {
+          console.error('Ошибка инициализации Telegram Web App:', err);
+          setError('Ошибка инициализации приложения');
+          setLoading(false);
         }
-      
+      }, []);
+
+      useEffect(() => {
+        if (!paymentData || !paymentData.payment_id) {
+          return;
+        }
         const interval = setInterval(async () => {
           try {
-            // Проверяем, что paymentData все еще существует
             if (!paymentData || !paymentData.payment_id) {
               clearInterval(interval);
               return;
             }
-      
             const response = await axiosInstance.post(`${API_URL}/api/check-payment-status`, { payment_id: paymentData.payment_id });
-            
-            // Проверяем, что response.data существует и имеет поле status
             if (!response.data || typeof response.data.status !== 'string') {
               throw new Error('Некорректный формат ответа сервера');
             }
-      
             if (response.data.status === 'succeeded') {
               setPaymentStatus('succeeded');
-              // Проверяем, что данные для confirmActivation валидны
               if (response.data.days && response.data.expiry_date) {
                 confirmActivation(response.data);
               } else {
@@ -1087,46 +1124,8 @@
             clearInterval(interval);
           }
         }, 5000);
-      
         return () => clearInterval(interval);
-      }, [paymentData, confirmActivation]); // Добавляем confirmActivation в зависимости
-
-
-        Telegram.WebApp.ready();
-        Telegram.WebApp.expand();
-        const initData = Telegram.WebApp.initData;
-        console.log('InitData:', initData);
-      
-        if (!initData) {
-          setError('Не удалось получить initData');
-          setLoading(false);
-          return;
-        }
-      
-        setLoading(true);
-        axiosInstance.post(`${API_URL}/api/auth`, { init_data: initData }, {
-          headers: { 'Cache-Control': 'no-cache' }
-        })
-          .then(({ data }) => {
-            console.log('Ответ авторизации:', data);
-            setUser(data.user);
-            // Загружаем подписки после успешной авторизации
-            return axiosInstance.get(`${API_URL}/api/subscriptions?tg_id=${data.user.telegram_id}`, {
-              headers: { 'Cache-Control': 'no-cache' }
-            });
-          })
-          .then(({ data }) => {
-            console.log('Ответ подписок:', data);
-            setSubscriptions(data.subscriptions || []);
-            setLoading(false);
-          })
-          .catch(err => {
-            console.error('Ошибка:', err);
-            const errorMessage = err.response?.data?.detail || err.message;
-            setError(`Ошибка: ${errorMessage}`);
-            setLoading(false);
-          });
-      }, []);
+      }, [paymentData, confirmActivation]);
 
       const navigate = (newView) => {
         setViewStack(prev => [...prev, view]);
