@@ -1964,10 +1964,10 @@
         const testProducts = sections.filter(section => section.name !== 'All').map(section => ({
           name: section.name,
           products: [
-            { name: `${section.name} - 1 месяц`, description: 'Подписка на 1 месяц' },
-            { name: `${section.name} - 3 месяца`, description: 'Подписка на 3 месяца' },
-            { name: `${section.name} - 6 месяцев`, description: 'Подписка на 6 месяцев' },
-            { name: `${section.name} - 1 год`, description: 'Подписка на 1 год' }
+            { name: `${section.name} - 1 месяц`, description: 'Подписка на 1 месяц', days: 30},
+            { name: `${section.name} - 3 месяца`, description: 'Подписка на 3 месяца', days: 90},
+            { name: `${section.name} - 6 месяцев`, description: 'Подписка на 6 месяцев', days: 180},
+            { name: `${section.name} - 1 год`, description: 'Подписка на 1 год', days: 360}
           ]
         }));
 
@@ -2083,6 +2083,7 @@
             product: selectedProduct.name,
             login,
             password,
+            days: selectedProduct.days,
           });
 
           if (response.status === 200) {
