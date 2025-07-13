@@ -1030,31 +1030,7 @@
           setLoading(false);
           return;
         }
-      useEffect(() => {
-        if (paymentData && paymentData.payment_id) {
-          const interval = setInterval(async () => {
-            try {
-              const response = await axiosInstance.post(`${API_URL}/api/check-payment-status`, { payment_id: paymentData.payment_id });
-              if (response.data.status === 'succeeded') {
-                setPaymentStatus('succeeded');
-                confirmActivation(response.data);
-                clearInterval(interval);
-              } else if (response.data.status === 'canceled' || response.data.status === 'failed') {
-                setPaymentStatus('failed');
-                setError('Платеж не удался. Пожалуйста, попробуйте снова.');
-                clearInterval(interval);
-              } else {
-                setPaymentStatus(response.data.status);
-              }
-            } catch (err) {
-              console.error('Ошибка проверки статуса платежа:', err);
-              setError(`Ошибка проверки статуса платежа: ${err.response?.data?.detail || err.message}`);
-              clearInterval(interval);
-            }
-          }, 5000);
-          return () => clearInterval(interval);
-        }
-      }, [paymentData]);
+
 
 
         Telegram.WebApp.ready();
