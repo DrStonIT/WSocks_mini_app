@@ -964,7 +964,8 @@
         timeout = setTimeout(() => func.apply(this, args), wait);
       };
     }
-
+    import { useState, useEffect } from 'react';
+    import axios from 'axios';
     function App() {
       const [user, setUser] = useState(null);
       const [view, setView] = useState('main');
