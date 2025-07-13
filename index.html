@@ -975,8 +975,22 @@
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState(null);
       const [paymentData, setPaymentData] = useState(() => {
-        const saved = localStorage.getItem('paymentData');
-        return saved ? JSON.parse(saved) : null;
+        try {
+          const saved = localStorage.getItem('paymentData');
+          if (!saved) return null;
+          const parsed = JSON.parse(saved);
+          // Проверяем, что parsed содержит payment_id
+          if (!parsed || !parsed.payment_id) {
+            console.warn('Некорректные данные paymentData в localStorage:', parsed);
+            localStorage.removeItem('paymentData');
+            return null;
+          }
+          return parsed;
+        } catch (err) {
+          console.error('Ошибка чтения paymentData из localStorage:', err);
+          localStorage.removeItem('paymentData'); // Очищаем некорректные данные
+          return null;
+        }
       });
 
       const [paymentStatus, setPaymentStatus] = useState(null);
