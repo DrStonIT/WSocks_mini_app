@@ -1070,7 +1070,7 @@
         let prevView = newStack[newStack.length - 1];
 
         // Пропускаем страницы оплаты
-        const paymentPages = ['payment', 'checkout'];
+        const paymentPages = ['payment', 'checkout', 'buy', 'extend'];
         while (paymentPages.includes(prevView) && newStack.length > 1) {
           newStack = newStack.slice(0, -1);
           prevView = newStack[newStack.length - 1];
