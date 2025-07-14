@@ -1011,6 +1011,27 @@
         localStorage.setItem('selectedSub', JSON.stringify(selectedSub));
       }, [view, paymentData, selectedSub]);
 
+
+      useEffect(() => {
+        if (window.Telegram?.WebApp) {
+          // Показываем или скрываем кнопку Telegram в зависимости от стека
+          if (viewStack.length > 0) {
+            Telegram.WebApp.BackButton.show();
+            Telegram.WebApp.BackButton.onClick(goBack);
+          } else {
+            Telegram.WebApp.BackButton.hide();
+          }
+
+          // Очистка обработчика при размонтировании
+          return () => {
+            if (window.Telegram?.WebApp) {
+              Telegram.WebApp.BackButton.offClick(goBack);
+            }
+          };
+        }
+      }, [viewStack, goBack]);
+
+
       useEffect(() => {
         console.log('Приложение запускается...');
         if (!window.Telegram || !window.Telegram.WebApp) {
@@ -2143,7 +2164,7 @@
 
     return h('div', null, [
         contentChildren,
-        viewStack.length > 0 && h('button', { className: 'circular-back-button', onClick: goBack, disabled: viewStack.length === 0 }, '<'),
+        viewStack.length > 0 && h('button', { className: 'circular-back-button', onClick: goBack }, '<'),
         selectedProduct && view === 'shop' && h('div', { className: 'product-card-overlay', onClick: () => setSelectedProduct(null) }, [
           h('div', { className: 'product-card-content', onClick: (e) => e.stopPropagation() }, [
             h('img', { src: selectedProduct.image || 'https://picsum.photos/130', alt: selectedProduct.name, className: 'product-image' }),
