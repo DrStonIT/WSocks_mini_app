@@ -1061,23 +1061,25 @@
       };
 
       const goBack = () => {
-        if (viewStack.length === 0) {
-          setView('main');
-          return;
-        }
+        setViewStack(prevStack => {
+          if (prevStack.length === 0) {
+            setView('main');
+            return [];
+          }
 
-        let newStack = [...viewStack];
-        let prevView = newStack[newStack.length - 1];
+          let newStack = [...prevStack];
+          let prevView = newStack[newStack.length - 1];
 
-        // Пропускаем страницы оплаты
-        const paymentPages = ['payment', 'checkout', 'buy', 'extend'];
-        while (paymentPages.includes(prevView) && newStack.length > 1) {
-          newStack = newStack.slice(0, -1);
-          prevView = newStack[newStack.length - 1];
-        }
+          // Пропускаем страницы оплаты и выбора подписки
+          const paymentPages = ['payment', 'checkout', 'buy', 'extend'];
+          while (paymentPages.includes(prevView) && newStack.length > 1) {
+            newStack = newStack.slice(0, -1);
+            prevView = newStack[newStack.length - 1];
+          }
 
-        setViewStack(newStack.slice(0, -1));
-        setView(prevView || 'main');
+          setView(prevView || 'main');
+          return newStack.slice(0, -1);
+        });
       };
 
       const fetchSubscriptions = async () => {
