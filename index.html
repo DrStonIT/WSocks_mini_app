@@ -1121,32 +1121,32 @@
       };
 
       const activateSubscription = debounce(async (days, isExtension = false, email = null, requestId) => {
-        if (!user) {
-          setError('Пользователь не авторизован');
-          return;
-        }
-        if (processingActions[requestId]) {
-          return;
-        }
-        setProcessingActions(prev => ({ ...prev, [requestId]: true }));
-        setLoading(true);
-        setError(null);
-        try {
-          const endpoint = isExtension ? '/api/extend-subscription' : '/api/buy-subscription';
-          const payload = isExtension 
-            ? { tg_id: user.telegram_id, days, email }
-            : { tg_id: user.telegram_id, days };
-          const response = await axiosInstance.post(`${API_URL}${endpoint}`, payload);
-          console.log('Ответ подписки:', response.data);
-          setPaymentData({ ...response.data, isExtension });
-          navigate('payment');
-        } catch (err) {
-          console.error('Ошибка активации подписки:', err);
-          setError(`Ошибка активации подписки: ${err.response?.data?.detail || err.message}`);
-        } finally {
-          setLoading(false);
-          setProcessingActions(prev => ({ ...prev, [requestId]: false }));
-        }
+          if (!user) {
+              setError('Пользователь не авторизован');
+              return;
+          }
+          if (processingActions[requestId]) {
+              return;
+          }
+          setProcessingActions(prev => ({ ...prev, [requestId]: true }));
+          setLoading(true);
+          setError(null);
+          try {
+              const endpoint = isExtension ? '/api/extend-subscription' : '/api/buy-subscription';
+              const payload = isExtension 
+                  ? { tg_id: user.telegram_id, days, email }
+                  : { tg_id: user.telegram_id, days };
+              const response = await axiosInstance.post(`${API_URL}${endpoint}`, payload);
+              setPaymentData({ ...response.data, days, isExtension, email });
+              localStorage.setItem('paymentData', JSON.stringify({ ...response.data, days, isExtension, email }));
+              Telegram.WebApp.openLink(response.data.payment_url);
+              navigate('payment');
+          } catch (err) {
+              setError(`Ошибка активации подписки: ${err.response?.data?.detail || err.message}`);
+          } finally {
+              setLoading(false);
+              setProcessingActions(prev => ({ ...prev, [requestId]: false }));
+          }
       }, 500);
 
       const activateTrial = debounce(async () => {
@@ -1671,29 +1671,80 @@
         ]);
       };
 
+      const checkPaymentStatus = async () => {
+          if (!paymentData || !paymentData.payment_id) {
+              setError('Нет данных о платеже');
+              return;
+          }
+          setLoading(true);
+          setError(null);
+          try {
+              const response = await axiosInstance.post(`${API_URL}/api/check-payment-status`, { payment_id: paymentData.payment_id });
+              if (response.data.status === 'succeeded') {
+                  await fetchSubscriptions();
+                  Telegram.WebApp.showAlert(
+                      paymentData.isExtension 
+                          ? `Подписка успешно продлена на ${response.data.days} дней до ${response.data.expiry_date}!` 
+                          : `Подписка успешно активирована на ${response.data.days} дней до ${response.data.expiry_date}!`
+                  );
+                  setPaymentData(null);
+                  setPaymentStatus(null);
+                  localStorage.removeItem('paymentData');
+                  navigate('subscriptions');
+              } else {
+                  setPaymentStatus(response.data.status);
+                  Telegram.WebApp.showAlert('Платёж ещё не завершён. Попробуйте позже.');
+              }
+          } catch (err) {
+              setError(`Ошибка проверки статуса: ${err.response?.data?.detail || err.message}`);
+          } finally {
+              setLoading(false);
+          }
+      };
+
       const renderPayment = () => {
-        const contentChildren = [];
-
-        if (error) {
-          contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(confirmActivation) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: () => { setPaymentData(null); localStorage.removeItem('paymentData'); goBack(); } }, 'Назад')
-          );
-        } else if (paymentData) {
-          contentChildren.push(
-            h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
-            h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), paymentData.email]),
-            h('p', { className: 'card' }, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
-            h('button', { className: 'glass-button button-success no-shine', onClick: confirmActivation, disabled: loading }, 'Подтвердить'),
-            h('button', { className: 'glass-button button-danger no-shine', onClick: () => { setPaymentData(null); localStorage.removeItem('paymentData'); goBack(); }, disabled: loading }, 'Отмена')
-          );
-        }
-
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Подтверждение подписки' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+          const contentChildren = [];
+          if (error) {
+              contentChildren.push(
+                  h('p', { className: 'error' }, error),
+                  h('button', { className: 'glass-button button-primary no-shine', onClick: () => {
+                      setError(null);
+                      if (paymentData && paymentData.days) {
+                          activateSubscription(paymentData.days, paymentData.isExtension, paymentData.email, `retry-${Date.now()}`);
+                      } else {
+                          setError('Недостаточно данных для повторной попытки');
+                      }
+                  }}, 'Повторить'),
+                  h('button', { className: 'glass-button button-danger no-shine', onClick: () => {
+                      setPaymentData(null);
+                      setPaymentStatus(null);
+                      localStorage.removeItem('paymentData');
+                      goBack();
+                  }, disabled: loading }, 'Отмена')
+              );
+          } else if (paymentData && paymentData.payment_id) {
+              contentChildren.push(
+                  h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
+                  h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), paymentData.email || 'Новая подписка']),
+                  h('p', { className: 'card' }, [h('b', null, 'Статус: '), paymentStatus || 'Ожидание оплаты']),
+                  h('button', { className: 'glass-button button-success no-shine', onClick: checkPaymentStatus, disabled: loading }, 'Подтвердить оплату'),
+                  h('button', { className: 'glass-button button-danger no-shine', onClick: () => {
+                      setPaymentData(null);
+                      setPaymentStatus(null);
+                      localStorage.removeItem('paymentData');
+                      goBack();
+                  }, disabled: loading }, 'Отмена')
+              );
+          } else {
+              contentChildren.push(
+                  h('p', { className: 'card' }, 'Нет данных о платеже. Вернитесь назад и попробуйте снова.'),
+                  h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+              );
+          }
+          return h('div', { className: 'container' }, [
+              Header({ title: 'Подтверждение подписки' }),
+              h('div', { className: 'content' }, contentChildren)
+          ]);
       };
 
       const renderSetup = () => {
