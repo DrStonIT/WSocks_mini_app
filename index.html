@@ -994,10 +994,7 @@
       const [viewStack, setViewStack] = useState([]);
       const [selectedProduct, setSelectedProduct] = useState(null);
       const [selectedSection, setSelectedSection] = useState('All');
-      const [shopSubscriptions, setShopSubscriptions] = useState(() => {
-        const saved = localStorage.getItem('shopSubscriptions');
-        return saved ? JSON.parse(saved) : [];
-      });
+
 
       const API_URL = 'https://unable-karisa-del-app-cebf6c42.koyeb.app';
       const SUPPORT_LINK = 'https://t.me/WSocks_Support';
@@ -1008,17 +1005,11 @@
 
       const axiosInstance = axios.create({ timeout: 0 });
 
-      localStorage.clear();
-
       useEffect(() => {
         localStorage.setItem('view', view);
         localStorage.setItem('paymentData', JSON.stringify(paymentData));
         localStorage.setItem('selectedSub', JSON.stringify(selectedSub));
       }, [view, paymentData, selectedSub]);
-
-      useEffect(() => {
-        localStorage.setItem('shopSubscriptions', JSON.stringify(shopSubscriptions));
-      }, [shopSubscriptions]);
 
       useEffect(() => {
         console.log('Приложение запускается...');
@@ -1275,7 +1266,7 @@
           contentChildren.push(
             h('button', { className: 'glass-button button-primary no-shine', onClick: toggleAllSubscriptionsPanel }, isAllSubscriptionsOpen ? 'Скрыть все подписки' : 'Показать все подписки'),
             h('div', { className: `subscriptions-panel ${isAllSubscriptionsOpen ? 'open' : ''}` }, 
-              subscriptions.length === 0 && shopSubscriptions.length === 0
+              subscriptions.length === 0 
                 ? [h('p', null, 'Нет активных подписок')]
                 : [
                     ...subscriptions.map((sub, index) => {
@@ -1322,12 +1313,6 @@
                         ])
                       ]);
                     }),
-                    ...shopSubscriptions.map((sub, index) => {
-                      return h('div', { key: `shop-${index}`, className: 'subscription' }, [
-                        h('h3', null, sub.name),
-                        h('p', null, sub.description)
-                      ]);
-                    })
                   ]
             )
           );
