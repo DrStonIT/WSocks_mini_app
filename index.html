@@ -2168,7 +2168,7 @@
             ))),
             h('div', { className: 'product-grid' }, filteredProducts.map((product, index) => (
               h('div', { key: index, className: 'product-card' }, [
-                h('img', { src: 'https://picsum.photos/76', alt: 'Product Image', className: 'product-image' }),
+                h('img', { src: product.image, alt: product.name, className: 'product-image' }),
                 h('div', null, [
                   h('h3', null, product.name),
                   h('p', null, product.description),
