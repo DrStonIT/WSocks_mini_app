@@ -1008,6 +1008,8 @@
 
       const axiosInstance = axios.create({ timeout: 0 });
 
+      localStorage.clear();
+
       useEffect(() => {
         localStorage.setItem('view', view);
         localStorage.setItem('paymentData', JSON.stringify(paymentData));
