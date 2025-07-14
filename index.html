@@ -1964,15 +1964,182 @@
           { name: 'Разное', icon: 'fas fa-ellipsis-h' }
         ];
 
-        const testProducts = sections.filter(section => section.name !== 'All').map(section => ({
-          name: section.name,
-          products: [
-            { name: `${section.name} - 1 месяц`, description: 'Подписка на 1 месяц', days: 30},
-            { name: `${section.name} - 3 месяца`, description: 'Подписка на 3 месяца', days: 90},
-            { name: `${section.name} - 6 месяцев`, description: 'Подписка на 6 месяцев', days: 180},
-            { name: `${section.name} - 1 год`, description: 'Подписка на 1 год', days: 360}
-          ]
-        }));
+       const testProducts = [
+      {
+        name: 'Spotify',
+        products: [
+          {
+            name: 'Spotify - 1 месяц',
+            description: 'Получите полный доступ к Spotify Premium на 1 месяц. Наслаждайтесь музыкой без рекламы, оффлайн-прослушиванием и высоким качеством звука на всех устройствах.',
+            days: 30,
+            image: 'images/spotify-1-month.jpg'
+          },
+          {
+            name: 'Spotify - 3 месяца',
+            description: 'Подписка на Spotify Premium на 3 месяца. Слушайте миллионы треков без рекламы, скачивайте музыку для оффлайн-воспроизведения и наслаждайтесь персонализированными плейлистами.',
+            days: 90,
+            image: 'images/spotify-3-months.jpg'
+          },
+          {
+            name: 'Spotify - 6 месяцев',
+            description: 'Шестимесячная подписка на Spotify Premium. Получите все преимущества Premium, включая неограниченный доступ к подкастам и высококачественное аудио, на длительный срок.',
+            days: 180,
+            image: 'images/spotify-6-months.jpg'
+          },
+          {
+            name: 'Spotify - 1 год',
+            description: 'Годовая подписка на Spotify Premium. Экономьте с длительным доступом к музыке без рекламы, оффлайн-режиму и эксклюзивным функциям для меломанов.',
+            days: 360,
+            image: 'images/spotify-1-year.jpg'
+          }
+        ]
+      },
+      {
+        name: 'ChatGPT / Sora',
+        products: [
+          {
+            name: 'ChatGPT / Sora - 1 месяц',
+            description: 'Доступ к ChatGPT Plus и Sora на 1 месяц. Используйте продвинутые функции ИИ для генерации текста, кода и мультимедиа с максимальной производительностью.',
+            days: 30,
+            image: 'images/chatgpt-1-month.jpg'
+          },
+          {
+            name: 'ChatGPT / Sora - 3 месяца',
+            description: 'Трехмесячная подписка на ChatGPT Plus и Sora. Получите расширенные возможности ИИ, включая создание сложных текстов и мультимедийного контента.',
+            days: 90,
+            image: 'images/chatgpt-3-months.jpg'
+          },
+          {
+            name: 'ChatGPT / Sora - 6 месяцев',
+            description: 'Полугодовая подписка на ChatGPT Plus и Sora. Идеально для профессионалов, использующих ИИ для автоматизации задач и создания контента.',
+            days: 180,
+            image: 'images/chatgpt-6-months.jpg'
+          },
+          {
+            name: 'ChatGPT / Sora - 1 год',
+            description: 'Годовой доступ к ChatGPT Plus и Sora. Максимальная выгода для долгосрочного использования ИИ в работе, учебе или творчестве.',
+            days: 360,
+            image: 'images/chatgpt-1-year.jpg'
+          }
+        ]
+      },
+      {
+        name: 'Telegram',
+        products: [
+          {
+            name: 'Telegram - 1 месяц',
+            description: 'Подписка Telegram Premium на 1 месяц. Получите эксклюзивные стикеры, увеличенные лимиты на чаты и файлы, а также ускоренную загрузку.',
+            days: 30,
+            image: 'images/telegram-1-month.jpg'
+          },
+          {
+            name: 'Telegram - 3 месяца',
+            description: 'Трехмесячная подписка Telegram Premium. Наслаждайтесь расширенными функциями, такими как управление папками и приоритетная поддержка.',
+            days: 90,
+            image: 'images/telegram-3-months.jpg'
+          },
+          {
+            name: 'Telegram - 6 месяцев',
+            description: 'Шестимесячная подписка Telegram Premium. Получите доступ к уникальным функциям и улучшенному интерфейсу для комфортного общения.',
+            days: 180,
+            image: 'images/telegram-6-months.jpg'
+          },
+          {
+            name: 'Telegram - 1 год',
+            description: 'Годовая подписка Telegram Premium. Экономьте с долгосрочным доступом к эксклюзивным функциям и улучшенному опыту использования.',
+            days: 360,
+            image: 'images/telegram-1-year.jpg'
+          }
+        ]
+      },
+      {
+        name: 'Grok',
+        products: [
+          {
+            name: 'Grok - 1 месяц',
+            description: 'Подписка на Grok от xAI на 1 месяц. Получите доступ к мощному ИИ для ответов на сложные вопросы и выполнения задач.',
+            days: 30,
+            image: 'images/grok-1-month.jpg'
+          },
+          {
+            name: 'Grok - 3 месяца',
+            description: 'Трехмесячная подписка на Grok. Используйте ИИ для исследований, обучения и автоматизации с расширенными возможностями.',
+            days: 90,
+            image: 'images/grok-3-months.jpg'
+          },
+          {
+            name: 'Grok - 6 месяцев',
+            description: 'Полугодовая подписка на Grok. Подходит для пользователей, ищущих долгосрочный доступ к ИИ для работы и учебы.',
+            days: 180,
+            image: 'images/grok-6-months.jpg'
+          },
+          {
+            name: 'Grok - 1 год',
+            description: 'Годовая подписка на Grok. Максимальная выгода для постоянного использования ИИ от xAI в различных задачах.',
+            days: 360,
+            image: 'images/grok-1-year.jpg'
+          }
+        ]
+      },
+      {
+        name: 'Adobe',
+        products: [
+          {
+            name: 'Adobe - 1 месяц',
+            description: 'Подписка на Adobe Creative Cloud на 1 месяц. Доступ ко всем приложениям Adobe для дизайна, видео и фотообработки.',
+            days: 30,
+            image: 'images/adobe-1-month.jpg'
+          },
+          {
+            name: 'Adobe - 3 месяца',
+            description: 'Трехмесячная подписка на Adobe Creative Cloud. Работайте с профессиональными инструментами для творчества и дизайна.',
+            days: 90,
+            image: 'images/adobe-3-months.jpg'
+          },
+          {
+            name: 'Adobe - 6 месяцев',
+            description: 'Полугодовая подписка на Adobe Creative Cloud. Идеально для дизайнеров и креаторов, работающих над долгосрочными проектами.',
+            days: 180,
+            image: 'images/adobe-6-months.jpg'
+          },
+          {
+            name: 'Adobe - 1 год',
+            description: 'Годовая подписка на Adobe Creative Cloud. Полный доступ к инструментам для создания профессионального контента с экономией.',
+            days: 360,
+            image: 'images/adobe-1-year.jpg'
+          }
+        ]
+      },
+      {
+        name: 'Разное',
+        products: [
+          {
+            name: 'Разное - 1 месяц',
+            description: 'Универсальная подписка на различные сервисы на 1 месяц. Подходит для доступа к уникальным платформам и услугам.',
+            days: 30,
+            image: 'images/misc-1-month.jpg'
+          },
+          {
+            name: 'Разное - 3 месяца',
+            description: 'Трехмесячная подписка на различные сервисы. Гибкий доступ к платформам, не входящим в основные категории.',
+            days: 90,
+            image: 'images/misc-3-months.jpg'
+          },
+          {
+            name: 'Разное - 6 месяцев',
+            description: 'Полугодовая подписка на различные сервисы. Подходит для пользователей, ищущих разнообразные цифровые решения.',
+            days: 180,
+            image: 'images/misc-6-months.jpg'
+          },
+          {
+            name: 'Разное - 1 год',
+            description: 'Годовая подписка на различные сервисы. Максимальная гибкость и доступ к уникальным платформам на долгий срок.',
+            days: 360,
+            image: 'images/misc-1-year.jpg'
+          }
+        ]
+      }
+    ];
 
         const allProducts = testProducts.flatMap(p => p.products);
 
