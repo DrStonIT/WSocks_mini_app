@@ -1141,10 +1141,21 @@
               console.log(`Sending request to ${endpoint} with payload:`, payload);
               const response = await axiosInstance.post(`${API_URL}${endpoint}`, payload);
               console.log('Response from backend:', response.data);
-              if (!response.data.payment_url || !response.data.payment_id) {
-                  throw new Error('Invalid response from backend: missing payment_url or payment_id');
+              if (!response.data.payment_url || !response.data.payment_id || !response.data.expiry_date) {
+                  throw new Error('Invalid response from backend: missing payment_url, payment_id, or expiry_date');
               }
-              const paymentData = { ...response.data, days, isExtension, email };
+              // Проверяем и преобразуем expiry_date
+              const expiryDate = new Date(response.data.expiry_date);
+              if (isNaN(expiryDate)) {
+                  throw new Error('Invalid expiry_date format from backend');
+              }
+              const paymentData = { 
+                  ...response.data, 
+                  days, 
+                  isExtension, 
+                  email,
+                  expiry_date: expiryDate.toISOString()
+              };
               setPaymentData(paymentData);
               localStorage.setItem('paymentData', JSON.stringify(paymentData));
               console.log('Payment data set:', paymentData);
@@ -1158,6 +1169,60 @@
               setProcessingActions(prev => ({ ...prev, [requestId]: false }));
           }
       }, 500);
+
+      const confirmActivation = async () => {
+          if (!user || !paymentData || !paymentData.payment_id) {
+              setError('Данные для активации отсутствуют');
+              console.error('No user or paymentData for confirmation');
+              return;
+          }
+          setLoading(true);
+          setError(null);
+          try {
+              // Проверяем статус оплаты
+              console.log(`Checking payment status for payment_id: ${paymentData.payment_id}`);
+              const paymentResponse = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
+                  payment_id: paymentData.payment_id
+              }, {
+                  headers: { 'Cache-Control': 'no-cache' }
+              });
+              console.log('Payment check response:', paymentResponse.data);
+              if (paymentResponse.data.status !== 'succeeded') {
+                  throw new Error('Оплата не подтверждена. Пожалуйста, завершите оплату или проверьте статус.');
+              }
+
+              // Обновляем подписки
+              const subscriptionResponse = await axiosInstance.get(`${API_URL}/api/subscriptions?tg_id=${user.telegram_id}`, {
+                  headers: { 'Cache-Control': 'no-cache' }
+              });
+              console.log('Subscriptions after confirmation:', subscriptionResponse.data);
+              setSubscriptions(subscriptionResponse.data.subscriptions || []);
+
+              // Проверяем, появилась ли новая подписка
+              const updatedSub = subscriptionResponse.data.subscriptions.find(sub => 
+                  sub.email === paymentData.email && 
+                  new Date(sub.expiry_date).toISOString() === paymentData.expiry_date
+              );
+              if (!updatedSub) {
+                  throw new Error('Подписка не была создана или продлена');
+              }
+
+              navigate('subscriptions');
+              Telegram.WebApp.showAlert(
+                  paymentData.isExtension 
+                      ? `Подписка успешно продлена на ${paymentData.days} дней до ${new Date(paymentData.expiry_date).toLocaleString()}!` 
+                      : `Подписка успешно активирована на ${paymentData.days} дней до ${new Date(paymentData.expiry_date).toLocaleString()}!`
+              );
+              setPaymentData(null);
+              localStorage.removeItem('paymentData');
+          } catch (err) {
+              const errorMessage = err.response?.data?.detail || err.message;
+              setError(`Ошибка подтверждения активации: ${errorMessage}`);
+              console.error('Error in confirmActivation:', errorMessage, err);
+          } finally {
+              setLoading(false);
+          }
+      };
 
       const activateTrial = debounce(async () => {
         if (!user) {
@@ -1222,31 +1287,6 @@
           setProcessingActions(prev => ({ ...prev, [requestId]: false }));
         }
       }, 500);
-
-      const confirmActivation = async () => {
-        if (!user || !paymentData) {
-          setError('Данные для активации отсутствуют');
-          return;
-        }
-        setLoading(true);
-        setError(null);
-        try {
-          navigate('subscriptions');
-          await fetchSubscriptions();
-          Telegram.WebApp.showAlert(
-            paymentData.isExtension 
-              ? `Подписка успешно продлена на ${paymentData.days} дней до ${paymentData.expiry_date}!` 
-              : `Подписка успешно активирована на ${paymentData.days} дней до ${paymentData.expiry_date}!`
-          );
-          setPaymentData(null);
-          localStorage.removeItem('paymentData');
-        } catch (err) {
-          console.error('Ошибка подтверждения активации:', err);
-          setError(`Ошибка подтверждения активации: ${err.message}`);
-        } finally {
-          setLoading(false);
-        }
-      };
 
       const handleRetry = (action) => {
         setError(null);
@@ -1748,11 +1788,13 @@
                       disabled: loading 
                   }, 'Отмена')
               );
-          } else if (paymentData && paymentData.payment_id && paymentData.payment_url) {
+          } else if (paymentData && paymentData.payment_id && paymentData.payment_url && paymentData.expiry_date) {
+              const expiryDate = new Date(paymentData.expiry_date);
+              const formattedExpiry = isNaN(expiryDate) ? 'Дата недоступна' : expiryDate.toLocaleString();
               contentChildren.push(
                   h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
                   h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), paymentData.email || 'Новая подписка']),
-                  h('p', { className: 'card' }, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
+                  h('p', { className: 'card' }, [h('b', null, 'Дата окончания: '), formattedExpiry]),
                   h('button', { 
                       className: 'glass-button button-primary no-shine', 
                       onClick: () => {
@@ -1766,6 +1808,29 @@
                       onClick: confirmActivation, 
                       disabled: loading 
                   }, 'Подтвердить'),
+                  h('button', { 
+                      className: 'glass-button button-primary no-shine', 
+                      onClick: async () => {
+                          setLoading(true);
+                          setError(null);
+                          try {
+                              const response = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
+                                  payment_id: paymentData.payment_id
+                              }, {
+                                  headers: { 'Cache-Control': 'no-cache' }
+                              });
+                              console.log('Manual payment check response:', response.data);
+                              Telegram.WebApp.showAlert(`Статус оплаты: ${response.data.status}`);
+                          } catch (err) {
+                              const errorMessage = err.response?.data?.detail || err.message;
+                              setError(`Ошибка проверки оплаты: ${errorMessage}`);
+                              console.error('Error in manual payment check:', errorMessage, err);
+                          } finally {
+                              setLoading(false);
+                          }
+                      }, 
+                      disabled: loading 
+                  }, 'Проверить статус оплаты'),
                   h('button', { 
                       className: 'glass-button button-danger no-shine', 
                       onClick: () => {
