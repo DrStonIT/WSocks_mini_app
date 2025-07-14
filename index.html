@@ -1123,9 +1123,11 @@
       const activateSubscription = debounce(async (days, isExtension = false, email = null, requestId) => {
           if (!user) {
               setError('Пользователь не авторизован');
+              console.error('No user data available');
               return;
           }
           if (processingActions[requestId]) {
+              console.warn(`Request ${requestId} already in progress`);
               return;
           }
           setProcessingActions(prev => ({ ...prev, [requestId]: true }));
@@ -1136,12 +1138,21 @@
               const payload = isExtension 
                   ? { tg_id: user.telegram_id, days, email }
                   : { tg_id: user.telegram_id, days };
+              console.log(`Sending request to ${endpoint} with payload:`, payload);
               const response = await axiosInstance.post(`${API_URL}${endpoint}`, payload);
-              setPaymentData({ ...response.data, days, isExtension, email });
-              localStorage.setItem('paymentData', JSON.stringify({ ...response.data, days, isExtension, email }));
-              navigate('payment'); // Переход на экран оплаты
+              console.log('Response from backend:', response.data);
+              if (!response.data.payment_url || !response.data.payment_id) {
+                  throw new Error('Invalid response from backend: missing payment_url or payment_id');
+              }
+              const paymentData = { ...response.data, days, isExtension, email };
+              setPaymentData(paymentData);
+              localStorage.setItem('paymentData', JSON.stringify(paymentData));
+              console.log('Payment data set:', paymentData);
+              navigate('payment');
           } catch (err) {
-              setError(`Ошибка активации подписки: ${err.response?.data?.detail || err.message}`);
+              const errorMessage = err.response?.data?.detail || err.message;
+              setError(`Ошибка активации подписки: ${errorMessage}`);
+              console.error('Error in activateSubscription:', errorMessage, err);
           } finally {
               setLoading(false);
               setProcessingActions(prev => ({ ...prev, [requestId]: false }));
@@ -1707,8 +1718,8 @@
       };
 
       const renderPayment = () => {
-          console.log('Rendering payment screen, paymentData:', paymentData);
           const contentChildren = [];
+
           if (error) {
               contentChildren.push(
                   h('p', { className: 'error' }, error),
@@ -1731,37 +1742,35 @@
                       onClick: () => {
                           console.log('Cancel button clicked, clearing payment data');
                           setPaymentData(null);
-                          setPaymentStatus(null);
                           localStorage.removeItem('paymentData');
                           goBack();
                       }, 
                       disabled: loading 
                   }, 'Отмена')
               );
-          } else if (paymentData && paymentData.payment_id) {
+          } else if (paymentData && paymentData.payment_id && paymentData.payment_url) {
               contentChildren.push(
                   h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
                   h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), paymentData.email || 'Новая подписка']),
-                  h('p', { className: 'card' }, [h('b', null, 'Статус: '), paymentStatus || 'Ожидание оплаты']),
+                  h('p', { className: 'card' }, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
                   h('button', { 
                       className: 'glass-button button-primary no-shine', 
                       onClick: () => {
                           console.log('Opening payment URL:', paymentData.payment_url);
                           Telegram.WebApp.openLink(paymentData.payment_url);
                       }, 
-                      disabled: loading || !paymentData.payment_url 
+                      disabled: loading 
                   }, 'Оплатить'),
                   h('button', { 
                       className: 'glass-button button-success no-shine', 
-                      onClick: checkPaymentStatus, 
+                      onClick: confirmActivation, 
                       disabled: loading 
-                  }, 'Подтвердить оплату'),
+                  }, 'Подтвердить'),
                   h('button', { 
                       className: 'glass-button button-danger no-shine', 
                       onClick: () => {
                           console.log('Cancel button clicked, clearing payment data');
                           setPaymentData(null);
-                          setPaymentStatus(null);
                           localStorage.removeItem('paymentData');
                           goBack();
                       }, 
@@ -1770,17 +1779,34 @@
               );
           } else {
               contentChildren.push(
-                  h('p', { className: 'card' }, 'Нет данных о платеже. Попробуйте снова.'),
+                  h('p', { className: 'error' }, 'Ошибка: данные для оплаты отсутствуют'),
                   h('button', { 
-                      className: 'glass-button button-secondary no-shine', 
+                      className: 'glass-button button-primary no-shine', 
                       onClick: () => {
-                          console.log('Back button clicked from payment screen');
+                          setError(null);
+                          if (paymentData && paymentData.days) {
+                              console.log('Retrying subscription activation with:', paymentData);
+                              activateSubscription(paymentData.days, paymentData.isExtension, paymentData.email, `retry-${Date.now()}`);
+                          } else {
+                              console.log('No paymentData, navigating back');
+                              goBack();
+                          }
+                      }, 
+                      disabled: loading 
+                  }, 'Повторить'),
+                  h('button', { 
+                      className: 'glass-button button-danger no-shine', 
+                      onClick: () => {
+                          console.log('Cancel button clicked, clearing payment data');
+                          setPaymentData(null);
+                          localStorage.removeItem('paymentData');
                           goBack();
                       }, 
                       disabled: loading 
-                  }, 'Назад')
+                  }, 'Отмена')
               );
           }
+
           return h('div', { className: 'container' }, [
               Header({ title: 'Подтверждение подписки' }),
               h('div', { className: 'content' }, contentChildren)
