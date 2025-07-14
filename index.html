@@ -2143,7 +2143,7 @@
 
     return h('div', null, [
         contentChildren,
-        viewStack.length > 0 && h('button', { className: 'circular-back-button', onClick: goBack }, '<'),
+        viewStack.length > 0 && h('button', { className: 'circular-back-button', onClick: goBack, disabled: viewStack.length === 0 }, '<'),
         selectedProduct && view === 'shop' && h('div', { className: 'product-card-overlay', onClick: () => setSelectedProduct(null) }, [
           h('div', { className: 'product-card-content', onClick: (e) => e.stopPropagation() }, [
             h('img', { src: selectedProduct.image || 'https://picsum.photos/130', alt: selectedProduct.name, className: 'product-image' }),
