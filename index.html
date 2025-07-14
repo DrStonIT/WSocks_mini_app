@@ -1189,32 +1189,34 @@
       };
 
       const activateSubscription = debounce(async (days, isExtension = false, email = null, requestId) => {
-          if (!user) {
-              setError('Пользователь не авторизован');
-              return;
-          }
-          if (processingActions[requestId]) {
-              return;
-          }
-          setProcessingActions(prev => ({ ...prev, [requestId]: true }));
-          setLoading(true);
-          setError(null);
-          try {
-              const endpoint = isExtension ? '/api/extend-subscription' : '/api/buy-subscription';
-              const payload = isExtension 
-                  ? { tg_id: user.telegram_id, days, email }
-                  : { tg_id: user.telegram_id, days };
-              const response = await axiosInstance.post(`${API_URL}${endpoint}`, payload);
-              setPaymentData({ ...response.data, days, isExtension, email });
-              localStorage.setItem('paymentData', JSON.stringify({ ...response.data, days, isExtension, email }));
-              Telegram.WebApp.openLink(response.data.payment_url);
-              navigate('payment');
-          } catch (err) {
-              setError(`Ошибка активации подписки: ${err.response?.data?.detail || err.message}`);
-          } finally {
-              setLoading(false);
-              setProcessingActions(prev => ({ ...prev, [requestId]: false }));
-          }
+        if (!user) {
+          setError('Пользователь не авторизован');
+          return;
+        }
+        if (processingActions[requestId]) {
+          return;
+        }
+        setProcessingActions(prev => ({ ...prev, [requestId]: true }));
+        setLoading(true);
+        setError(null);
+        try {
+          const endpoint = isExtension ? '/api/extend-subscription' : '/api/buy-subscription';
+          const payload = isExtension 
+            ? { tg_id: user.telegram_id, days, email }
+            : { tg_id: user.telegram_id, days };
+          const response = await axiosInstance.post(`${API_URL}${endpoint}`, payload);
+          console.log('Ответ подписки:', response.data);
+          setPaymentData({ ...response.data, isExtension });
+          localStorage.setItem('paymentData', JSON.stringify({ ...response.data, isExtension }));
+          Telegram.WebApp.openLink(response.data.payment_url);
+          navigate('payment');
+        } catch (err) {
+          console.error('Ошибка активации подписки:', err);
+          setError(`Ошибка активации подписки: ${err.response?.data?.detail || err.message}`);
+        } finally {
+          setLoading(false);
+          setProcessingActions(prev => ({ ...prev, [requestId]: false }));
+        }
       }, 500);
       
       const confirmActivation = async (data) => {
