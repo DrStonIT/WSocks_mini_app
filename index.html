@@ -1061,13 +1061,23 @@
       };
 
       const goBack = () => {
-        if (viewStack.length > 0) {
-          const prevView = viewStack[viewStack.length - 1];
-          setViewStack(prev => prev.slice(0, -1));
-          setView(prevView);
-        } else {
+        if (viewStack.length === 0) {
           setView('main');
+          return;
         }
+
+        let newStack = [...viewStack];
+        let prevView = newStack[newStack.length - 1];
+
+        // Пропускаем страницы оплаты
+        const paymentPages = ['payment', 'checkout'];
+        while (paymentPages.includes(prevView) && newStack.length > 1) {
+          newStack = newStack.slice(0, -1);
+          prevView = newStack[newStack.length - 1];
+        }
+
+        setViewStack(newStack.slice(0, -1));
+        setView(prevView || 'main');
       };
 
       const fetchSubscriptions = async () => {
