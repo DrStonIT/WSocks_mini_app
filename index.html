@@ -1011,27 +1011,6 @@
         localStorage.setItem('selectedSub', JSON.stringify(selectedSub));
       }, [view, paymentData, selectedSub]);
 
-
-      useEffect(() => {
-        if (window.Telegram?.WebApp) {
-          // Показываем или скрываем кнопку Telegram в зависимости от стека
-          if (viewStack.length > 0) {
-            Telegram.WebApp.BackButton.show();
-            Telegram.WebApp.BackButton.onClick(goBack);
-          } else {
-            Telegram.WebApp.BackButton.hide();
-          }
-
-          // Очистка обработчика при размонтировании
-          return () => {
-            if (window.Telegram?.WebApp) {
-              Telegram.WebApp.BackButton.offClick(goBack);
-            }
-          };
-        }
-      }, [viewStack, goBack]);
-
-
       useEffect(() => {
         console.log('Приложение запускается...');
         if (!window.Telegram || !window.Telegram.WebApp) {
@@ -1082,23 +1061,27 @@
       };
 
       const goBack = () => {
-        setViewStack(prevStack => {
-          if (prevStack.length === 0) {
-            setView('main');
-            return [];
-          }
+        console.log('goBack called, current view:', view, 'viewStack:', viewStack);
+        if (viewStack.length === 0) {
+          console.log('Stack empty, setting view to main');
+          setView('main');
+          return;
+        }
 
+        setViewStack(prevStack => {
           let newStack = [...prevStack];
           let prevView = newStack[newStack.length - 1];
 
-          // Пропускаем страницы оплаты и выбора подписки
           const paymentPages = ['payment', 'checkout', 'buy', 'extend'];
           while (paymentPages.includes(prevView) && newStack.length > 1) {
+            console.log('Skipping payment page:', prevView);
             newStack = newStack.slice(0, -1);
             prevView = newStack[newStack.length - 1];
           }
 
-          setView(prevView || 'main');
+          const targetView = prevView || 'main';
+          console.log('Navigating to:', targetView, 'new stack:', newStack.slice(0, -1));
+          setView(targetView);
           return newStack.slice(0, -1);
         });
       };
