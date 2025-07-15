@@ -17,7 +17,7 @@
   <style>
     :root[data-theme="dark"] {
       --glass-bg: rgba(75, 156, 211, 0.3);
-      --glass-blur: blur(10px);
+      --glass-blV: blur(10px);
       --glass-shadow: 0 0 10px #fff;
       --button-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
       --text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -59,7 +59,7 @@
       --button-bg: linear-gradient(135deg, rgba(90, 180, 229, 0.3), rgba(75, 156, 211, 0.3));
       --button-hover-bg: linear-gradient(135deg, rgba(90, 180, 229, 0.2), rgba(90, 180, 229, 0.1));
       --accent-color: #4b9cd3;
-      --button-secondary-bg: linear-gradient(135deg, rgba(120, 130, 140, 0.3), rgba(107 шк, 114, 128, 0.3));
+      --button-secondary-bg: linear-gradient(135deg, rgba(120, 130, 140, 0.3), rgba(107, 114, 128, 0.3));
       --button-secondary-hover-bg: linear-gradient(135deg, rgba(75, 85, 99, 0.2), rgba(75, 85, 99, 0.1));
       --button-success-bg: linear-gradient(135deg, rgba(20, 200, 140, 0.3), rgba(16, 185, 129, 0.3));
       --button-success-hover-bg: linear-gradient(135deg, rgba(5, 150, 105, 0.2), rgba(5, 150, 105, 0.1));
@@ -924,7 +924,38 @@
 <body>
   <div id="root"></div>
   <script type="text/javascript">
-    const { useState, useEffect, createElement: h } = React;
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+      return cell !== '' && cell != null;
+    }
+    function loadFileData(filename) {
+      if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+        try {
+          var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+          var firstSheetName = workbook.SheetNames[0];
+          var worksheet = workbook.Sheets[firstSheetName];
+          var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+          var filteredData = jsonData.filter(row => row.some(filledCell));
+          var headerRowIndex = filteredData.findIndex((row, index) =>
+            row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+          );
+          if (headerRowIndex === -1 || headerRowIndex > 25) {
+            headerRowIndex = 0;
+          }
+          var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+          csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+          return csv;
+        } catch (e) {
+          console.error(e);
+          return "";
+        }
+      }
+      return gk_fileData[filename] || "";
+    }
+
+    const { useState, useEffect } = React;
 
     function debounce(func, wait) {
       let timeout;
@@ -943,6 +974,8 @@
       const [referrals, setReferrals] = useState([]);
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState(null);
+      const [paymentUrl, setPaymentUrl] = useState(null);
+      const [paymentId, setPaymentId] = useState(null);
       const [paymentData, setPaymentData] = useState(() => {
         const saved = localStorage.getItem('paymentData');
         return saved ? JSON.parse(saved) : null;
@@ -954,6 +987,11 @@
       const [selectedReferee, setSelectedReferee] = useState(null);
       const [processingActions, setProcessingActions] = useState({});
       const [isAllSubscriptionsOpen, setIsAllSubscriptionsOpen] = useState(false);
+      const [products] = useState([
+        { name: 'Товар 1', description: 'Описание товара 1' },
+        { name: 'Товар 2', description: 'Описание товара 2' },
+        { name: 'Товар 3', description: 'Описание товара 3' }
+      ]);
       const [searchTerm, setSearchTerm] = useState('');
       const [viewStack, setViewStack] = useState([]);
       const [selectedProduct, setSelectedProduct] = useState(null);
@@ -961,7 +999,10 @@
 
       const API_URL = 'https://unable-karisa-del-app-cebf6c42.koyeb.app';
       const SUPPORT_LINK = 'https://t.me/WSocks_Support';
+      const SUPPORT_HANDLE = '@WSocks_Support';
       const BOT_USERNAME = '@penis2008bot';
+      const APP_DOWNLOAD_LINK = 'https://example.com/download';
+      const TELEGRAM_CHANNEL_LINK = 'https://t.me/WSocks_Channel';
 
       const axiosInstance = axios.create({ timeout: 0 });
 
@@ -973,27 +1014,23 @@
 
       useEffect(() => {
         console.log('Приложение запускается...');
-        try {
-          localStorage.removeItem('paymentData');
-          setPaymentData(null);
-          console.log('paymentData очищено при запуске');
-        } catch (e) {
-          console.warn('Ошибка при очистке paymentData:', e);
-        }
         if (!window.Telegram || !window.Telegram.WebApp) {
           setError('Telegram Web App SDK не загружен');
           setLoading(false);
           return;
         }
+      
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         const initData = Telegram.WebApp.initData;
         console.log('InitData:', initData);
+      
         if (!initData) {
           setError('Не удалось получить initData');
           setLoading(false);
           return;
         }
+      
         setLoading(true);
         axiosInstance.post(`${API_URL}/api/auth`, { init_data: initData }, {
           headers: { 'Cache-Control': 'no-cache' }
@@ -1024,19 +1061,26 @@
       };
 
       const goBack = () => {
+        console.log('goBack called, current view:', view, 'viewStack:', viewStack);
         if (viewStack.length === 0) {
+          console.log('Stack empty, setting view to main');
           setView('main');
           return;
         }
+
         setViewStack(prevStack => {
           let newStack = [...prevStack];
           let prevView = newStack[newStack.length - 1];
-          const paymentPages = ['payment', 'checkout', 'buy', 'extend'];
+
+          const paymentPages = ['payment', 'checkout', 'buy', 'extend', 'productPayment'];
           while (paymentPages.includes(prevView) && newStack.length > 1) {
+            console.log('Skipping payment page:', prevView);
             newStack = newStack.slice(0, -1);
             prevView = newStack[newStack.length - 1];
           }
+
           const targetView = prevView || 'main';
+          console.log('Navigating to:', targetView, 'new stack:', newStack.slice(0, -1));
           setView(targetView);
           return newStack.slice(0, -1);
         });
@@ -1179,49 +1223,33 @@
       }, 500);
 
       const confirmActivation = async () => {
-        if (!paymentData?.payment_id) {
-          Telegram.WebApp.showAlert("Нет данных оплаты");
+        if (!user || !paymentData?.payment_id) {
+          setError('Данные оплаты отсутствуют');
           return;
         }
 
         setLoading(true);
+        setError(null);
         try {
-          if (paymentData?.isProduct) {
-            const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
-              payment_id: paymentData.payment_id
-            });
-
-            if (res.data.status === "succeeded") {
-              Telegram.WebApp.showAlert(`Покупка товара "${paymentData.product}" успешно подтверждена!`);
-              navigate("shop");
-              setPaymentData(null);
-              localStorage.removeItem("paymentData");
-              return;
-            } else {
-              Telegram.WebApp.showAlert("Платёж не найден");
-              return;
-            }
-          }
-
-          const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
+          const response = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
             payment_id: paymentData.payment_id
           });
 
-          if (res.data.status === "succeeded") {
+          if (response.data.status === 'succeeded') {
             await fetchSubscriptions();
+            navigate('subscriptions');
             Telegram.WebApp.showAlert(
               paymentData.isExtension
-                ? `Подписка продлена до ${res.data.expiry_date}`
-                : `Подписка активирована до ${res.data.expiry_date}`
+                ? `Подписка продлена на ${paymentData.days} дней до ${response.data.expiry_date}!`
+                : `Подписка активирована на ${paymentData.days} дней до ${response.data.expiry_date}!`
             );
-            navigate("subscriptions");
             setPaymentData(null);
-            localStorage.removeItem("paymentData");
+            localStorage.removeItem('paymentData');
           } else {
             Telegram.WebApp.showAlert("Платёж не найден");
           }
         } catch (err) {
-          Telegram.WebApp.showAlert("Ошибка при подтверждении оплаты");
+          setError(`Ошибка при проверке оплаты: ${err.message}`);
           console.error(err);
         } finally {
           setLoading(false);
@@ -1251,9 +1279,9 @@
       };
 
       const Header = ({ title }) => {
-        return h('div', { className: 'header' }, [
-          h('div', { className: 'header-title' }, title)
-        ]);
+        return <div className="header">
+          <div className="header-title">{title}</div>
+        </div>;
       };
 
       const renderMainMenu = () => {
@@ -1261,127 +1289,129 @@
 
         if (user) {
           contentChildren.push(
-            h('button', { className: 'glass-button button-primary no-shine', onClick: toggleAllSubscriptionsPanel }, isAllSubscriptionsOpen ? 'Скрыть все подписки' : 'Показать все подписки'),
-            h('div', { className: `subscriptions-panel ${isAllSubscriptionsOpen ? 'open' : ''}` }, 
-              subscriptions.length === 0 
-                ? [h('p', null, 'Нет активных подписок')]
-                : [
-                    ...subscriptions.map((sub, index) => {
-                      const isExpired = sub.is_expired;
-                      const daysRemaining = Math.max(0, Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)));
-                      const daysDisplay = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)) < -8 ? '∞' : `${daysRemaining} дней`;
-                      return h('div', { key: `vpn-${index}`, className: 'subscription' }, [
-                        h('h3', null, [
-                          h('i', { className: 'fas fa-key', style: { marginRight: '4px' } }),
-                          `VPN Подключение #${sub.email.split('-').pop()}`
-                        ]),
-                        h('p', null, [
-                          isExpired ? h('span', { className: 'status-error' }, [
-                            h('i', { className: 'fas fa-circle', style: { color: 'red', marginRight: '4px' } }),
-                            'Заблокировано'
-                          ]) : h('span', { className: 'status-active' }, [
-                            h('i', { className: 'fas fa-circle', style: { color: 'green', marginRight: '4px' } }),
-                            'Активно'
-                          ])
-                        ]),
-                        h('p', null, [
-                          h('i', { className: 'fas fa-satellite-dish', style: { marginRight: '4px' } }),
-                          'До окончания: ',
-                          h('span', { className: 'days-remaining' }, daysDisplay)
-                        ]),
-                        h('p', null, [
-                          h('i', { className: 'fas fa-users', style: { marginRight: '4px' } }),
-                          'Макс. устройств: ',
-                          sub.email.startsWith('DE-FRA-TRIAL-') ? '3' : '5'
-                        ]),
-                        h('button', { className: 'extend-button no-shine', onClick: () => { setSelectedSub(sub); navigate('extend'); }, disabled: loading }, [
-                          h('i', { className: 'fas fa-sync-alt', style: { marginRight: '4px' } }),
-                          'Продлить'
-                        ]),
-                        h('div', { className: 'buttons' }, [
-                          h('button', { className: 'copy-button no-shine', onClick: () => copyToClipboard(sub.sub_url), disabled: loading }, [
-                            h('i', { className: 'fas fa-copy', style: { marginRight: '4px' } }),
-                            'Скопировать'
-                          ]),
-                          h('button', { className: 'instruction-button no-shine', onClick: () => { setSelectedSub(sub); navigate('setup'); }, disabled: loading }, [
-                            h('i', { className: 'fas fa-file-alt', style: { marginRight: '4px' } }),
-                            'Инструкция'
-                          ])
-                        ])
-                      ]);
-                    }),
-                  ]
-            )
+            <button className="glass-button button-primary no-shine" onClick={toggleAllSubscriptionsPanel}>
+              {isAllSubscriptionsOpen ? 'Скрыть все подписки' : 'Показать все подписки'}
+            </button>,
+            <div className={`subscriptions-panel ${isAllSubscriptionsOpen ? 'open' : ''}`}>
+              {subscriptions.length === 0 
+                ? [<p>Нет активных подписок</p>]
+                : subscriptions.map((sub, index) => {
+                    const isExpired = sub.is_expired;
+                    const daysRemaining = Math.max(0, Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)));
+                    const daysDisplay = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)) < -8 ? '∞' : `${daysRemaining} дней`;
+                    return (
+                      <div key={`vpn-${index}`} className="subscription">
+                        <h3>
+                          <i className="fas fa-key" style={{ marginRight: '4px' }} />
+                          {`VPN Подключение #${sub.email.split('-').pop()}`}
+                        </h3>
+                        <p>
+                          {isExpired 
+                            ? <span className="status-error">
+                                <i className="fas fa-circle" style={{ color: 'red', marginRight: '4px' }} />
+                                Заблокировано
+                              </span>
+                            : <span className="status-active">
+                                <i className="fas fa-circle" style={{ color: 'green', marginRight: '4px' }} />
+                                Активно
+                              </span>}
+                        </p>
+                        <p>
+                          <i className="fas fa-satellite-dish" style={{ marginRight: '4px' }} />
+                          До окончания: <span className="days-remaining">{daysDisplay}</span>
+                        </p>
+                        <p>
+                          <i className="fas fa-users" style={{ marginRight: '4px' }} />
+                          Макс. устройств: {sub.email.startsWith('DE-FRA-TRIAL-') ? '3' : '5'}
+                        </p>
+                        <button className="extend-button no-shine" onClick={() => { setSelectedSub(sub); navigate('extend'); }} disabled={loading}>
+                          <i className="fas fa-sync-alt" style={{ marginRight: '4px' }} />
+                          Продлить
+                        </button>
+                        <div className="buttons">
+                          <button className="copy-button no-shine" onClick={() => copyToClipboard(sub.sub_url)} disabled={loading}>
+                            <i className="fas fa-copy" style={{ marginRight: '4px' }} />
+                            Скопировать
+                          </button>
+                          <button className="instruction-button no-shine" onClick={() => { setSelectedSub(sub); navigate('setup'); }} disabled={loading}>
+                            <i className="fas fa-file-alt" style={{ marginRight: '4px' }} />
+                            Инструкция
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+            </div>
           );
         }
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary', onClick: () => window.location.reload() }, 'Повторить'),
-            h('button', { className: 'glass-button button-danger', onClick: () => Telegram.WebApp.close() }, 'Закрыть приложение')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary" onClick={() => window.location.reload()}>Повторить</button>,
+            <button className="glass-button button-danger" onClick={() => Telegram.WebApp.close()}>Закрыть приложение</button>
           );
         } else {
           contentChildren.push(
-            h('div', { className: 'button-row first-row' }, [
-              h('button', { className: 'glass-button button-square vpn-button', onClick: fetchSubscriptions, disabled: loading }, [
-                h('i', { className: 'fas fa-shield-alt icon' }),
-                h('span', null, 'VPN')
-              ]),
-              h('button', { className: 'glass-button button-square shop-button', onClick: () => navigate('shop'), disabled: loading }, [
-                h('i', { className: 'fas fa-store icon' }),
-                h('span', null, 'Магазин')
-              ])
-            ]),
-            h('div', { className: 'button-row second-row' }, [
-              h('button', { className: 'glass-button button-square button-small', onClick: fetchReferrals, disabled: loading }, [
-                h('i', { className: 'fas fa-users icon' }),
-                h('span', null, 'Рефералы')
-              ]),
-              h('button', { className: 'glass-button button-square button-small', onClick: () => navigate('support'), disabled: loading }, [
-                h('i', { className: 'fas fa-envelope icon' }),
-                h('span', null, 'Поддержка')
-              ]),
-              h('button', { className: 'glass-button button-square button-small', onClick: () => navigate('info'), disabled: loading }, [
-                h('i', { className: 'fas fa-info-circle icon' }),
-                h('span', null, 'Информация')
-              ])
-            ]),
-            h('div', { className: 'telegram-block', onClick: () => Telegram.WebApp.openLink('https://t.me/WSocks_VPN') }, [
-              h('span', null, [
-                h('i', { className: 'fas fa-bullhorn icon' }),
-                ' WSocks // Блог'
-              ]),
-              h('small', null, 'Актуальные новости проекта')
-            ]),
-            h('div', { className: 'telegram-block youtube-block', onClick: () => Telegram.WebApp.openLink('https://www.youtube.com/@WSocks_VPN') }, [
-              h('span', null, [
-                h('i', { className: 'fab fa-youtube' }),
-                ' WSocks в YouTube'
-              ]),
-              h('small', null, 'Смотрите наши видео')
-            ]),
-            h('div', { className: 'telegram-block site-block', onClick: () => Telegram.WebApp.openLink('https://wsocks.ru') }, [
-              h('span', null, [
-                h('i', { className: 'fas fa-globe' }),
-                ' Сайт с общей информацией'
-              ]),
-              h('small', null, 'Узнайте больше о проекте')
-            ]),
-            h('div', { className: 'telegram-block github-block', onClick: () => Telegram.WebApp.openLink('https://github.com/WSocks-Develop/WSocks-VPN--NekoBox-.git') }, [
-              h('span', null, [
-                h('i', { className: 'fab fa-github' }),
-                ' GitHub страница проекта'
-              ]),
-              h('small', null, 'Исходный код и разработка')
-            ])
+            <div className="button-row first-row">
+              <button className="glass-button button-square vpn-button" onClick={fetchSubscriptions} disabled={loading}>
+                <i className="fas fa-shield-alt icon" />
+                <span>VPN</span>
+              </button>
+              <button className="glass-button button-square shop-button" onClick={() => navigate('shop')} disabled={loading}>
+                <i className="fas fa-store icon" />
+                <span>Магазин</span>
+              </button>
+            </div>,
+            <div className="button-row second-row">
+              <button className="glass-button button-square button-small" onClick={fetchReferrals} disabled={loading}>
+                <i className="fas fa-users icon" />
+                <span>Рефералы</span>
+              </button>
+              <button className="glass-button button-square button-small" onClick={() => navigate('support')} disabled={loading}>
+                <i className="fas fa-envelope icon" />
+                <span>Поддержка</span>
+              </button>
+              <button className="glass-button button-square button-small" onClick={() => navigate('info')} disabled={loading}>
+                <i className="fas fa-info-circle icon" />
+                <span>Информация</span>
+              </button>
+            </div>,
+            <div className="telegram-block" onClick={() => Telegram.WebApp.openLink('https://t.me/WSocks_VPN')}>
+              <span>
+                <i className="fas fa-bullhorn icon" />
+                WSocks // Блог
+              </span>
+              <small>Актуальные новости проекта</small>
+            </div>,
+            <div className="telegram-block youtube-block" onClick={() => Telegram.WebApp.openLink('https://www.youtube.com/@WSocks_VPN')}>
+              <span>
+                <i className="fab fa-youtube" />
+                WSocks в YouTube
+              </span>
+              <small>Смотрите наши видео</small>
+            </div>,
+            <div className="telegram-block site-block" onClick={() => Telegram.WebApp.openLink('https://wsocks.ru')}>
+              <span>
+                <i className="fas fa-globe" />
+                Сайт с общей информацией
+              </span>
+              <small>Узнайте больше о проекте</small>
+            </div>,
+            <div className="telegram-block github-block" onClick={() => Telegram.WebApp.openLink('https://github.com/WSocks-Develop/WSocks-VPN--NekoBox-.git')}>
+              <span>
+                <i className="fab fa-github" />
+                GitHub страница проекта
+              </span>
+              <small>Исходный код и разработка</small>
+            </div>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Главное меню' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Главное меню" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderSupport = () => {
@@ -1389,26 +1419,26 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary', onClick: () => handleRetry(() => navigate('support')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary" onClick={() => handleRetry(() => navigate('support'))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           contentChildren.push(
-            h('div', { className: 'card' }, [
-              h('p', null, 'Для связи с нашей поддержкой отправьте сообщение в поддержку.'),
-              h('p', null, `Ваш id в телеграмм: ${user.telegram_id}`),
-              h('button', { className: 'glass-button support-button', onClick: () => copyToClipboard(user.telegram_id) }, 'Скопировать TG ID'),
-              h('button', { className: 'glass-button support-button', onClick: () => Telegram.WebApp.openLink(SUPPORT_LINK) }, 'Написать в поддержку')
-            ]),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <div className="card">
+              <p>Для связи с нашей поддержкой отправьте сообщение в поддержку.</p>
+              <p>{`Ваш id в телеграмм: ${user.telegram_id}`}</p>
+              <button className="glass-button support-button" onClick={() => copyToClipboard(user.telegram_id)}>Скопировать TG ID</button>
+              <button className="glass-button support-button" onClick={() => Telegram.WebApp.openLink(SUPPORT_LINK)}>Написать в поддержку</button>
+            </div>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Поддержка' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Поддержка" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderReferrals = () => {
@@ -1416,57 +1446,55 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary', onClick: () => handleRetry(fetchReferrals) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary" onClick={() => handleRetry(fetchReferrals)}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           contentChildren.push(
-            h('p', { className: 'card' }, [
-              'Приглашайте друзей и получайте ',
-              h('b', null, '7 дней'),
-              ' бесплатно:'
-            ])
+            <p className="card">
+              Приглашайте друзей и получайте <b>7 дней</b> бесплатно:
+            </p>
           );
 
           if (user) {
             contentChildren.push(
-              h('div', { className: 'card' }, [
-                h('p', null, `Ваша реферальная ссылка: ${BOT_USERNAME}?start=ref_${user.telegram_id}`),
-                h('button', { className: 'glass-button button-primary no-shine', onClick: () => copyToClipboard(`${BOT_USERNAME}?start=ref_${user.telegram_id}`) }, 'Скопировать ссылку')
-              ])
+              <div className="card">
+                <p>{`Ваша реферальная ссылка: ${BOT_USERNAME}?start=ref_${user.telegram_id}`}</p>
+                <button className="glass-button button-primary no-shine" onClick={() => copyToClipboard(`${BOT_USERNAME}?start=ref_${user.telegram_id}`)}>Скопировать ссылку</button>
+              </div>
             );
           }
 
           if (referrals.length === 0) {
-            contentChildren.push(h('p', { className: 'card' }, 'У вас пока нет рефералов.'));
+            contentChildren.push(<p className="card">У вас пока нет рефералов.</p>);
           } else {
             referrals.forEach((ref, index) => {
               const cardChildren = [
-                h('p', null, [h('b', null, 'ID реферала: '), ref.referee_id])
+                <p><b>ID реферала: </b>{ref.referee_id}</p>
               ];
               if (ref.bonus_applied) {
                 cardChildren.push(
-                  h('p', null, [h('b', null, 'Бонус получен: '), new Date(ref.bonus_date).toLocaleString()])
+                  <p><b>Бонус получен: </b>{new Date(ref.bonus_date).toLocaleString()}</p>
                 );
               } else {
                 cardChildren.push(
-                  h('button', { className: 'glass-button button-success', onClick: () => applyReferralBonus(ref.referee_id), disabled: loading }, 'Получить бонус')
+                  <button className="glass-button button-success" onClick={() => applyReferralBonus(ref.referee_id)} disabled={loading}>Получить бонус</button>
                 );
               }
-              contentChildren.push(h('div', { key: index, className: 'card' }, cardChildren));
+              contentChildren.push(<div key={index} className="card">{cardChildren}</div>);
             });
           }
 
           contentChildren.push(
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Реферальная система' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Реферальная система" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderSubscriptions = () => {
@@ -1474,72 +1502,72 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary', onClick: () => handleRetry(fetchSubscriptions) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary" onClick={() => handleRetry(fetchSubscriptions)}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           if (subscriptions.length === 0) {
-            contentChildren.push(h('p', { className: 'card' }, 'Нет активных подписок.'));
+            contentChildren.push(<p className="card">Нет активных подписок.</p>);
           } else {
             subscriptions.forEach((sub, index) => {
               const isExpired = sub.is_expired;
               const daysRemaining = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
               const daysDisplay = daysRemaining < -8 ? '∞' : `${daysRemaining} дней`;
               const cardChildren = [
-                h('h3', null, [
-                  h('i', { className: 'fas fa-key', style: { marginRight: '4px' } }),
-                  `Подключение #${sub.email.split('-').pop()}`
-                ]),
-                h('p', null, [
-                  isExpired ? h('span', { className: 'status-error' }, [
-                    h('i', { className: 'fas fa-circle', style: { color: 'red', marginRight: '4px' } }),
-                    'Заблокировано'
-                  ]) : h('span', { className: 'status-active' }, [
-                    h('i', { className: 'fas fa-circle', style: { color: 'green', marginRight: '4px' } }),
-                    'Активно'
-                  ])
-                ]),
-                h('p', null, [
-                  h('i', { className: 'fas fa-satellite-dish', style: { marginRight: '4px' } }),
-                  'До окончания: ',
-                  h('span', { className: 'days-remaining' }, daysDisplay)
-                ]),
-                h('p', null, [
-                  h('i', { className: 'fas fa-users', style: { marginRight: '4px' } }),
-                  'Макс. устройств: ',
-                  sub.email.startsWith('DE-FRA-TRIAL-') ? '3' : '5'
-                ]),
-                h('button', { className: 'extend-button no-shine', onClick: () => { setSelectedSub(sub); navigate('extend'); }, disabled: loading }, [
-                  h('i', { className: 'fas fa-sync-alt', style: { marginRight: '4px' } }),
-                  'Продлить'
-                ]),
-                h('div', { className: 'buttons' }, [
-                  h('button', { className: 'copy-button no-shine', onClick: () => copyToClipboard(sub.sub_url), disabled: loading }, [
-                    h('i', { className: 'fas fa-copy', style: { marginRight: '4px' } }),
-                    'Скопировать'
-                  ]),
-                  h('button', { className: 'instruction-button no-shine', onClick: () => { setSelectedSub(sub); navigate('setup'); }, disabled: loading }, [
-                    h('i', { className: 'fas fa-file-alt', style: { marginRight: '4px' } }),
-                    'Инструкция'
-                  ])
-                ])
+                <h3>
+                  <i className="fas fa-key" style={{ marginRight: '4px' }} />
+                  {`Подключение #${sub.email.split('-').pop()}`}
+                </h3>,
+                <p>
+                  {isExpired 
+                    ? <span className="status-error">
+                        <i className="fas fa-circle" style={{ color: 'red', marginRight: '4px' }} />
+                        Заблокировано
+                      </span>
+                    : <span className="status-active">
+                        <i className="fas fa-circle" style={{ color: 'green', marginRight: '4px' }} />
+                        Активно
+                      </span>}
+                </p>,
+                <p>
+                  <i className="fas fa-satellite-dish" style={{ marginRight: '4px' }} />
+                  До окончания: <span className="days-remaining">{daysDisplay}</span>
+                </p>,
+                <p>
+                  <i className="fas fa-users" style={{ marginRight: '4px' }} />
+                  Макс. устройств: {sub.email.startsWith('DE-FRA-TRIAL-') ? '3' : '5'}
+                </p>,
+                <button className="extend-button no-shine" onClick={() => { setSelectedSub(sub); navigate('extend'); }} disabled={loading}>
+                  <i className="fas fa-sync-alt" style={{ marginRight: '4px' }} />
+                  Продлить
+                </button>,
+                <div className="buttons">
+                  <button className="copy-button no-shine" onClick={() => copyToClipboard(sub.sub_url)} disabled={loading}>
+                    <i className="fas fa-copy" style={{ marginRight: '4px' }} />
+                    Скопировать
+                  </button>,
+                  <button className="instruction-button no-shine" onClick={() => { setSelectedSub(sub); navigate('setup'); }} disabled={loading}>
+                    <i className="fas fa-file-alt" style={{ marginRight: '4px' }} />
+                    Инструкция
+                  </button>
+                </div>
               ];
-              contentChildren.push(h('div', { key: index, className: 'subscription' }, cardChildren));
+              contentChildren.push(<div key={index} className="subscription">{cardChildren}</div>);
             });
           }
 
           contentChildren.push(
-            h('button', { className: 'glass-button button-primary', onClick: activateTrial, disabled: loading }, 'Пробная подписка'),
-            h('button', { className: 'glass-button button-primary', onClick: () => navigate('buy'), disabled: loading }, 'Купить подписку'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <button className="glass-button button-primary" onClick={activateTrial} disabled={loading}>Пробная подписка</button>,
+            <button className="glass-button button-primary" onClick={() => navigate('buy')} disabled={loading}>Купить подписку</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'VPN' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="VPN" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderBuy = () => {
@@ -1547,24 +1575,24 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => activateSubscription(30, false, null, generateRequestId())) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => activateSubscription(30, false, null, generateRequestId()))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           contentChildren.push(
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => activateSubscription(30, false, null, generateRequestId()), disabled: loading || processingActions['buy-30'] }, '30 дней - 89 ₽'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => activateSubscription(90, false, null, generateRequestId()), disabled: loading || processingActions['buy-90'] }, '90 дней - 249 ₽'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => activateSubscription(180, false, null, generateRequestId()), disabled: loading || processingActions['buy-180'] }, '180 дней - 449 ₽'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => activateSubscription(360, false, null, generateRequestId()), disabled: loading || processingActions['buy-360'] }, '360 дней - 849 ₽'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <button className="glass-button button-primary no-shine" onClick={() => activateSubscription(30, false, null, generateRequestId())} disabled={loading || processingActions['buy-30']}>30 дней - 89 ₽</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => activateSubscription(90, false, null, generateRequestId())} disabled={loading || processingActions['buy-90']}>90 дней - 249 ₽</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => activateSubscription(180, false, null, generateRequestId())} disabled={loading || processingActions['buy-180']}>180 дней - 449 ₽</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => activateSubscription(360, false, null, generateRequestId())} disabled={loading || processingActions['buy-360']}>360 дней - 849 ₽</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Купить подписку' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Купить подписку" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderExtend = () => {
@@ -1572,30 +1600,30 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => activateSubscription(30, true, selectedSub.email, generateRequestId())) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => activateSubscription(30, true, selectedSub.email, generateRequestId()))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           if (selectedSub) {
             contentChildren.push(
-              h('p', { className: 'card' }, [h('b', null, 'Подключение '), `#${selectedSub.email.split('-').pop()}` ]),
-              h('p', { className: 'card' }, [h('b', null, 'Текущая дата окончания: '), new Date(selectedSub.expiry_date).toLocaleString()])
+              <p className="card"><b>Подключение </b>{`#${selectedSub.email.split('-').pop()}`}</p>,
+              <p className="card"><b>Текущая дата окончания: </b>{new Date(selectedSub.expiry_date).toLocaleString()}</p>
             );
           }
           contentChildren.push(
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => activateSubscription(30, true, selectedSub ? selectedSub.email : null, generateRequestId()), disabled: loading || processingActions['extend-30'] }, 'Продлить на 30 дней - 89 ₽'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => activateSubscription(90, true, selectedSub ? selectedSub.email : null, generateRequestId()), disabled: loading || processingActions['extend-90'] }, 'Продлить на 90 дней - 249 ₽'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => activateSubscription(180, true, selectedSub ? selectedSub.email : null, generateRequestId()), disabled: loading || processingActions['extend-180'] }, 'Продлить на 180 дней - 449 ₽'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => activateSubscription(360, true, selectedSub ? selectedSub.email : null, generateRequestId()), disabled: loading || processingActions['extend-360'] }, 'Продлить на 360 дней - 849 ₽'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <button className="glass-button button-primary no-shine" onClick={() => activateSubscription(30, true, selectedSub ? selectedSub.email : null, generateRequestId())} disabled={loading || processingActions['extend-30']}>Продлить на 30 дней - 89 ₽</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => activateSubscription(90, true, selectedSub ? selectedSub.email : null, generateRequestId())} disabled={loading || processingActions['extend-90']}>Продлить на 90 дней - 249 ₽</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => activateSubscription(180, true, selectedSub ? selectedSub.email : null, generateRequestId())} disabled={loading || processingActions['extend-180']}>Продлить на 180 дней - 449 ₽</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => activateSubscription(360, true, selectedSub ? selectedSub.email : null, generateRequestId())} disabled={loading || processingActions['extend-360']}>Продлить на 360 дней - 849 ₽</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Продлить подписку' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Продлить подписку" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderSelectSubscription = () => {
@@ -1603,58 +1631,57 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => applyReferralBonus(selectedReferee)) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => applyReferralBonus(selectedReferee))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
-          contentChildren.push(h('p', { className: 'card' }, 'Выберите подписку для продления на 7 дней:'));
+          contentChildren.push(<p className="card">Выберите подписку для продления на 7 дней:</p>);
           const nonTrialSubs = subscriptions.filter(sub => !sub.email.startsWith('DE-FRA-TRIAL-'));
           nonTrialSubs.forEach((sub, index) => {
             const daysRemaining = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
             const daysDisplay = daysRemaining < -8 ? '∞' : `${daysRemaining} дней`;
             contentChildren.push(
-              h('div', { key: index, className: 'card' }, [
-                h('h3', null, [
-                  h('i', { className: 'fas fa-key', style: { marginRight: '4px' } }),
-                  `Подключение #${sub.email.split('-').pop()}`,
-                  sub.is_expired 
-                    ? h('span', { className: 'status-error' }, [
-                        h('i', { className: 'fas fa-circle', style: { color: 'red', marginRight: '4px' } }),
-                        'Заблокировано'
-                      ])
-                    : h('span', { className: 'status-active' }, [
-                        h('i', { className: 'fas fa-circle', style: { color: 'green', marginRight: '4px' } }),
-                        'Активно'
-                      ])
-                ]),
-                h('p', null, [
-                  h('i', { className: 'fas fa-satellite-dish', style: { marginRight: '4px' } }),
-                  'До окончания: ',
-                  h('span', { className: 'days-remaining' }, daysDisplay)
-                ]),
-                h('div', { className: 'buttons' }, [
-                  h('button', { className: 'copy-button no-shine', onClick: () => copyToClipboard(sub.sub_url), disabled: loading }, [
-                    h('i', { className: 'fas fa-copy', style: { marginRight: '4px' } }),
-                    'Скопировать'
-                  ]),
-                  h('button', { className: 'instruction-button no-shine', onClick: () => { setSelectedSub(sub); navigate('setup'); }, disabled: loading }, [
-                    h('i', { className: 'fas fa-file-alt', style: { marginRight: '4px' } }),
-                    'Инструкция'
-                  ])
-                ])
-              ])
+              <div key={index} className="card">
+                <h3>
+                  <i className="fas fa-key" style={{ marginRight: '4px' }} />
+                  {`Подключение #${sub.email.split('-').pop()}`}
+                  {sub.is_expired 
+                    ? <span className="status-error">
+                        <i className="fas fa-circle" style={{ color: 'red', marginRight: '4px' }} />
+                        Заблокировано
+                      </span>
+                    : <span className="status-active">
+                        <i className="fas fa-circle" style={{ color: 'green', marginRight: '4px' }} />
+                        Активно
+                      </span>}
+                </h3>,
+                <p>
+                  <i className="fas fa-satellite-dish" style={{ marginRight: '4px' }} />
+                  До окончания: <span className="days-remaining">{daysDisplay}</span>
+                </p>,
+                <div className="buttons">
+                  <button className="copy-button no-shine" onClick={() => copyToClipboard(sub.sub_url)} disabled={loading}>
+                    <i className="fas fa-copy" style={{ marginRight: '4px' }} />
+                    Скопировать
+                  </button>,
+                  <button className="instruction-button no-shine" onClick={() => { setSelectedSub(sub); navigate('setup'); }} disabled={loading}>
+                    <i className="fas fa-file-alt" style={{ marginRight: '4px' }} />
+                    Инструкция
+                  </button>
+                </div>
+              </div>
             );
           });
-          contentChildren.push(h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад'));
+          contentChildren.push(<button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>);
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Выберите подписку' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Выберите подписку" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
-
+      
       const confirmPayment = async () => {
         if (!paymentData?.payment_id) {
           Telegram.WebApp.showAlert("Нет данных оплаты");
@@ -1709,37 +1736,97 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(confirmActivation) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: () => { setPaymentData(null); localStorage.removeItem('paymentData'); goBack(); } }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(confirmActivation)}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={() => { setPaymentData(null); localStorage.removeItem('paymentData'); goBack(); }}>Назад</button>
           );
         } else if (paymentData) {
           contentChildren.push(
-            h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
-            h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), paymentData.email ? paymentData.email : "Новый пользователь"]),
-            h('p', { className: 'card' }, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
-            h('button', {
-              className: 'glass-button button-primary no-shine',
-              onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
-              disabled: loading
-            }, 'Оплатить'),
-            h('button', {
-              className: 'glass-button button-success no-shine',
-              onClick: confirmPayment,
-              disabled: loading
-            }, 'Подтвердить'),
-            h('button', {
-              className: 'glass-button button-danger no-shine',
-              onClick: cancelPayment,
-              disabled: loading
-            }, 'Отмена')
+            <p className="card">{`Подписка на ${paymentData.days} дней`}</p>,
+            <p className="card"><b>Пользователь: </b>Новый пользователь</p>,
+            <p className="card"><b>Дата окончания: </b>{new Date(paymentData.expiry_date).toLocaleString()}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => Telegram.WebApp.openLink(paymentData.payment_url)} disabled={loading}>Оплатить</button>,
+            <button className="glass-button button-success no-shine" onClick={confirmPayment} disabled={loading}>Подтвердить</button>,
+            <button className="glass-button button-danger no-shine" onClick={cancelPayment} disabled={loading}>Отмена</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Подтверждение подписки' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Подтверждение подписки" />
+          <div className="content">{contentChildren}</div>
+        </div>;
+      };
+
+      const renderProductPayment = () => {
+        const contentChildren = [];
+
+        if (error) {
+          contentChildren.push(
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(confirmProductPayment)}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={() => { setPaymentData(null); localStorage.removeItem('paymentData'); goBack(); }}>Назад</button>
+          );
+        } else if (paymentData && paymentData.type === 'product') {
+          contentChildren.push(
+            <p className="card">{`Покупка товара: ${paymentData.productName}`}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => Telegram.WebApp.openLink(paymentData.payment_url)} disabled={loading}>Ссылка на оплату</button>,
+            <button className="glass-button button-success no-shine" onClick={confirmProductPayment} disabled={loading}>Подтвердить</button>,
+            <button className="glass-button button-danger no-shine" onClick={cancelProductPayment} disabled={loading}>Отмена</button>
+          );
+        }
+
+        return <div className="container">
+          <Header title="Подтверждение оплаты" />
+          <div className="content">{contentChildren}</div>
+        </div>;
+      };
+
+      const confirmProductPayment = async () => {
+        if (!paymentData?.payment_id) {
+          Telegram.WebApp.showAlert("Нет данных оплаты");
+          return;
+        }
+
+        setLoading(true);
+        try {
+          const response = await axiosInstance.post(`${API_URL}/api/check-product-payment`, {
+            payment_id: paymentData.payment_id
+          });
+
+          if (response.data.status === 'succeeded') {
+            setPaymentData(null);
+            localStorage.removeItem('paymentData');
+            navigate('main');
+            Telegram.WebApp.showAlert(`Покупка товара '${response.data.product}' успешно завершена!`);
+          } else {
+            Telegram.WebApp.showAlert("Платёж не найден или не завершён");
+          }
+        } catch (err) {
+          Telegram.WebApp.showAlert("Ошибка при проверке оплаты");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const cancelProductPayment = async () => {
+        if (!paymentData?.payment_id) {
+          goBack();
+          return;
+        }
+
+        setLoading(true);
+        try {
+          await axiosInstance.post(`${API_URL}/api/cancel-payment`, {
+            payment_id: paymentData.payment_id
+          });
+        } catch (err) {
+          console.warn('Ошибка отмены оплаты:', err);
+        } finally {
+          setPaymentData(null);
+          localStorage.removeItem('paymentData');
+          goBack();
+          setLoading(false);
+        }
       };
 
       const renderSetup = () => {
@@ -1747,27 +1834,27 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('setup')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => navigate('setup'))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           if (selectedSub) {
-            contentChildren.push(h('p', { className: 'card' }, [h('b', null, 'Подключение '), `#${selectedSub.email.split('-').pop()}` ]));
+            contentChildren.push(<p className="card"><b>Подключение </b>{`#${selectedSub.email.split('-').pop()}`}</p>);
           }
           contentChildren.push(
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualPC'), disabled: loading }, window.TEXTS.setup.manualPC.title),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualAndroid'), disabled: loading }, window.TEXTS.setup.manualAndroid.title),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualIOS'), disabled: loading }, window.TEXTS.setup.manualIOS.title),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('manualAndroidTV'), disabled: loading }, window.TEXTS.setup.manualAndroidTV.title),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <button className="glass-button button-primary no-shine" onClick={() => navigate('manualPC')} disabled={loading}>{window.TEXTS.setup.manualPC.title}</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => navigate('manualAndroid')} disabled={loading}>{window.TEXTS.setup.manualAndroid.title}</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => navigate('manualIOS')} disabled={loading}>{window.TEXTS.setup.manualIOS.title}</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => navigate('manualAndroidTV')} disabled={loading}>{window.TEXTS.setup.manualAndroidTV.title}</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Настройка' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Настройка" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderManualPC = () => {
@@ -1775,24 +1862,24 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('manualPC')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => navigate('manualPC'))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else if (selectedSub) {
           contentChildren.push(
-            h('div', { className: 'card' }, [
-              h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualPC.content(selectedSub.sub_url) } })
-            ]),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://github.com/Ckr1tn1y/WSocks-VPN--NekoBox-/archive/refs/heads/main.zip') }, 'Скачать'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <div className="card">
+              <div className="manual-content" dangerouslySetInnerHTML={{ __html: window.TEXTS.setup.manualPC.content(selectedSub.sub_url) }} />
+            </div>,
+            <button className="glass-button button-primary no-shine" onClick={() => Telegram.WebApp.openLink('https://github.com/Ckr1tn1y/WSocks-VPN--NekoBox-/archive/refs/heads/main.zip')}>Скачать</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: window.TEXTS.setup.manualPC.title }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title={window.TEXTS.setup.manualPC.title} />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderManualAndroid = () => {
@@ -1800,25 +1887,25 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('manualAndroid')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => navigate('manualAndroid'))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           contentChildren.push(
-            h('div', { className: 'card' }, [
-              h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualAndroid.content } })
-            ]),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://play.google.com/store/apps/details?id=com.v2raytun.android') }, 'Скачать'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink(selectedSub.redirect_url) }, 'Импортировать'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <div className="card">
+              <div className="manual-content" dangerouslySetInnerHTML={{ __html: window.TEXTS.setup.manualAndroid.content }} />
+            </div>,
+            <button className="glass-button button-primary no-shine" onClick={() => Telegram.WebApp.openLink('https://play.google.com/store/apps/details?id=com.v2raytun.android')}>Скачать</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => Telegram.WebApp.openLink(selectedSub.redirect_url)}>Импортировать</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: window.TEXTS.setup.manualAndroid.title }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title={window.TEXTS.setup.manualAndroid.title} />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderManualIOS = () => {
@@ -1826,25 +1913,25 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('manualIOS')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => navigate('manualIOS'))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           contentChildren.push(
-            h('div', { className: 'card' }, [
-              h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualIOS.content } })
-            ]),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://apps.apple.com/ru/app/v2raytun/id6476628951') }, 'Скачать'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink(selectedSub.redirect_url) }, 'Импортировать'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <div className="card">
+              <div className="manual-content" dangerouslySetInnerHTML={{ __html: window.TEXTS.setup.manualIOS.content }} />
+            </div>,
+            <button className="glass-button button-primary no-shine" onClick={() => Telegram.WebApp.openLink('https://apps.apple.com/ru/app/v2raytun/id6476628951')}>Скачать</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => Telegram.WebApp.openLink(selectedSub.redirect_url)}>Импортировать</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: window.TEXTS.setup.manualIOS.title }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title={window.TEXTS.setup.manualIOS.title} />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderManualAndroidTV = () => {
@@ -1852,24 +1939,24 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('manualAndroidTV')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => navigate('manualAndroidTV'))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else if (selectedSub) {
           contentChildren.push(
-            h('div', { className: 'card' }, [
-              h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.setup.manualAndroidTV.content(selectedSub.sub_url) } })
-            ]),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://play.google.com/store/apps/details?id=com.google.android.videos') }, 'Скачать'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <div className="card">
+              <div className="manual-content" dangerouslySetInnerHTML={{ __html: window.TEXTS.setup.manualAndroidTV.content(selectedSub.sub_url) }} />
+            </div>,
+            <button className="glass-button button-primary no-shine" onClick={() => Telegram.WebApp.openLink('https://play.google.com/store/apps/details?id=com.google.android.videos')}>Скачать</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: window.TEXTS.setup.manualAndroidTV.title }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title={window.TEXTS.setup.manualAndroidTV.title} />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderInfo = () => {
@@ -1877,24 +1964,24 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('info')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => navigate('info'))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           contentChildren.push(
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('service'), disabled: loading }, 'О сервисе'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('subscription'), disabled: loading }, 'О подписке'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('terms'), disabled: loading }, 'Пользовательское соглашение'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => navigate('privacy'), disabled: loading }, 'Политика конфиденциальности'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <button className="glass-button button-primary no-shine" onClick={() => navigate('service')} disabled={loading}>О сервисе</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => navigate('subscription')} disabled={loading}>О подписке</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => navigate('terms')} disabled={loading}>Пользовательское соглашение</button>,
+            <button className="glass-button button-primary no-shine" onClick={() => navigate('privacy')} disabled={loading}>Политика конфиденциальности</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Информация' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Информация" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderService = () => {
@@ -1902,75 +1989,75 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('service')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => navigate('service'))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           contentChildren.push(
-            h('p', { className: 'card' }, 'WSocks VPN обеспечивает безопасный доступ в интернет через серверы в Германии. Мы гарантируем конфиденциальность данных, стабильность и высокую скорость. Сервис использует современные протоколы TLS+Vless+TCP+Reality и поддерживает несколько приложений.'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <p className="card">WSocks VPN обеспечивает безопасный доступ в интернет через серверы в Германии. Мы гарантируем конфиденциальность данных, стабильность и высокую скорость. Сервис использует современные протоколы TLS+Vless+TCP+Reality и поддерживает несколько приложений.</p>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'О сервисе' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="О сервисе" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderSubscription = () => {
-        const contentChildren = [];
+              const contentChildren = [];
 
-        if (error) {
-          contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('subscription')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
-          );
-        } else {
-          contentChildren.push(
-            h('div', { className: 'card' }, [
-              h('p', null, [h('b', null, 'Стоимость:'), ' 89 ₽/месяц']),
-              h('p', null, [h('b', null, 'Ограничение скорости:'), ' Отсутствует']),
-              h('p', null, [h('b', null, 'Ограничение трафика:'), ' Безлимитный']),
-              h('p', null, [h('b', null, 'Протоколы:'), ' TLS+Vless']),
-              h('p', null, [h('b', null, 'Приложения:'), ' v2raytun, NekoBox']),
-              h('p', null, [h('b', null, 'Макс. устройств:'), ' 5']),
-              h('p', null, [h('b', null, 'Примечание:'), ' Добавьте игры или торренты в исключения, чтобы избежать ограничения скорости.'])
-            ]),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
-          );
-        }
+              if (error) {
+                contentChildren.push(
+                  h('p', { className: 'error' }, error),
+                  h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('subscription')) }, 'Повторить'),
+                  h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+                );
+              } else {
+                contentChildren.push(
+                  h('div', { className: 'card' }, [
+                    h('p', null, [h('b', null, 'Стоимость:'), ' 89 ₽/месяц']),
+                    h('p', null, [h('b', null, 'Ограничение скорости:'), ' Отсутствует']),
+                    h('p', null, [h('b', null, 'Ограничение трафика:'), ' Безлимитный']),
+                    h('p', null, [h('b', null, 'Протоколы:'), ' TLS+Vless']),
+                    h('p', null, [h('b', null, 'Приложения:'), ' v2raytun, NekoBox']),
+                    h('p', null, [h('b', null, 'Макс. устройств:'), ' 5']),
+                    h('p', null, [h('b', null, 'Примечание:'), ' Добавьте игры или торренты в исключения, чтобы избежать ограничения скорости.'])
+                  ]),
+                  h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+                );
+              }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'О подписке' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
-      };
+              return h('div', { className: 'container' }, [
+                Header({ title: 'О подписке' }),
+                h('div', { className: 'content' }, contentChildren)
+              ]);
+            };
 
       const renderTerms = () => {
         const contentChildren = [];
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('terms')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => navigate('terms'))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           contentChildren.push(
-            h('div', { className: 'card' }, [
-              h('div', { className: 'manual-content', dangerouslySetInnerHTML: { __html: window.TEXTS.terms.content } })
-            ]),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <div className="card">
+              <div className="manual-content" dangerouslySetInnerHTML={{ __html: window.TEXTS.terms.content }} />
+            </div>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: window.TEXTS.terms.title }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title={window.TEXTS.terms.title} />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderPrivacy = () => {
@@ -1978,22 +2065,22 @@
 
         if (error) {
           contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(() => navigate('privacy')) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(() => navigate('privacy'))}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
           );
         } else {
           contentChildren.push(
-            h('p', { className: 'card' }, 'WSocks VPN уважает вашу конфиденциальность и использует только данные, предоставленные Telegram. Подробности доступны по ссылке:'),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => Telegram.WebApp.openLink('https://telegra.ph/Politika-konfidencialnosti-08-04-7'), disabled: loading }, 'Открыть политику'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+            <p className="card">WSocks VPN уважает вашу конфиденциальность и использует только данные, предоставленные Telegram. Подробности доступны по ссылке:</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => Telegram.WebApp.openLink('https://telegra.ph/Politika-konfidencialnosti-08-04-7')} disabled={loading}>Открыть политику</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
           );
         }
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Политика конфиденциальности' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Политика конфиденциальности" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
       const renderShop = () => {
@@ -2021,21 +2108,21 @@
                 description: 'Подписка на Spotify Premium на 3 месяца. Слушайте миллионы треков без рекламы, скачивайте музыку для оффлайн-воспроизведения и наслаждайтесь персонализированными плейлистами.',
                 days: 90,
                 image: 'images/spotify.jpg',
-                price: 249
+                price: 89
               },
               {
                 name: 'Spotify - 6 месяцев',
                 description: 'Шестимесячная подписка на Spotify Premium. Получите все преимущества Premium, включая неограниченный доступ к подкастам и высококачественное аудио, на длительный срок.',
                 days: 180,
                 image: 'images/spotify.jpg',
-                price: 449
+                price: 89
               },
               {
                 name: 'Spotify - 1 год',
                 description: 'Годовая подписка на Spotify Premium. Экономьте с длительным доступом к музыке без рекламы, оффлайн-режиму и эксклюзивным функциям для меломанов.',
                 days: 360,
                 image: 'images/spotify.jpg',
-                price: 849
+                price: 89
               }
             ]
           },
@@ -2046,7 +2133,7 @@
                 name: 'ChatGPT / Sora - 1 месяц',
                 description: 'Доступ к ChatGPT Plus и Sora на 1 месяц. Используйте продвинутые функции ИИ для генерации текста, кода и мультимедиа с максимальной производительностью.',
                 days: 30,
-                image: 'images/chatgpt.jpg',
+                image: 'images/chatgpt.jpg', 
                 price: 89
               },
               {
@@ -2054,21 +2141,21 @@
                 description: 'Трехмесячная подписка на ChatGPT Plus и Sora. Получите расширенные возможности ИИ, включая создание сложных текстов и мультимедийного контента.',
                 days: 90,
                 image: 'images/chatgpt.jpg',
-                price: 249
+                price: 89
               },
               {
                 name: 'ChatGPT / Sora - 6 месяцев',
                 description: 'Полугодовая подписка на ChatGPT Plus и Sora. Идеально для профессионалов, использующих ИИ для автоматизации задач и создания контента.',
                 days: 180,
                 image: 'images/chatgpt.jpg',
-                price: 449
+                price: 89
               },
               {
                 name: 'ChatGPT / Sora - 1 год',
                 description: 'Годовой доступ к ChatGPT Plus и Sora. Максимальная выгода для долгосрочного использования ИИ в работе, учебе или творчестве.',
                 days: 360,
                 image: 'images/chatgpt.jpg',
-                price: 849
+                price: 89
               }
             ]
           },
@@ -2087,21 +2174,21 @@
                 description: 'Трехмесячная подписка Telegram Premium. Наслаждайтесь расширенными функциями, такими как управление папками и приоритетная поддержка.',
                 days: 90,
                 image: 'images/telegram.png',
-                price: 249
+                price: 89
               },
               {
                 name: 'Telegram - 6 месяцев',
                 description: 'Шестимесячная подписка Telegram Premium. Получите доступ к уникальным функциям и улучшенному интерфейсу для комфортного общения.',
                 days: 180,
                 image: 'images/telegram.png',
-                price: 449
+                price: 89
               },
               {
                 name: 'Telegram - 1 год',
                 description: 'Годовая подписка Telegram Premium. Экономьте с долгосрочным доступом к эксклюзивным функциям и улучшенному опыту использования.',
                 days: 360,
                 image: 'images/telegram.png',
-                price: 849
+                price: 89
               }
             ]
           },
@@ -2120,196 +2207,164 @@
                 description: 'Трехмесячная подписка на Grok. Используйте ИИ для исследований, обучения и автоматизации с расширенными возможностями.',
                 days: 90,
                 image: 'images/grok.jpg',
-                price: 249
+                price: 89
               },
               {
                 name: 'Grok - 6 месяцев',
                 description: 'Полугодовая подписка на Grok. Подходит для пользователей, ищущих долгосрочный доступ к ИИ для работы и учебы.',
                 days: 180,
                 image: 'images/grok.jpg',
-                price: 449
+                price: 89
               },
               {
                 name: 'Grok - 1 год',
                 description: 'Годовая подписка на Grok. Максимальная выгода для постоянного использования ИИ от xAI в различных задачах.',
                 days: 360,
                 image: 'images/grok.jpg',
-                price: 849
+                price: 89
               }
             ]
-          }
+          },
         ];
 
         const allProducts = testProducts.flatMap(p => p.products);
+
         const filteredProducts = selectedSection === 'All'
           ? allProducts.filter(product => product.name.toLowerCase().includes(searchTerm.toLowerCase()))
           : testProducts.find(p => p.name === selectedSection)?.products.filter(product => product.name.toLowerCase().includes(searchTerm.toLowerCase())) || [];
 
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Магазин' }),
-          h('div', { className: 'content' }, [
-            h('input', { 
-              type: 'search', 
-              className: 'search-bar', 
-              placeholder: 'Поиск товаров', 
-              onChange: (e) => setSearchTerm(e.target.value) 
-            }),
-            h('div', { className: 'sections' }, sections.map(section => (
-              h('div', { 
-                className: 'section', 
-                onClick: () => setSelectedSection(section.name),
-                style: selectedSection === section.name ? { background: '#4b9cd3' } : {}
-              }, [
-                h('i', { className: section.icon }),
-                h('span', null, section.name)
-              ])
-            ))),
-            h('div', { className: 'product-grid' }, filteredProducts.map((product, index) => (
-              h('div', { key: index, className: 'product-card' }, [
-                h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center' } }, [
-                  h('img', { src: product.image, alt: product.name, className: 'product-image' }),
-                  h('p', { style: { fontSize: '16px', fontWeight: 'bold', margin: '8px 0 8px -10px', textAlign: 'center' } }, `${product.price} ₽`)
-                ]),
-                h('div', null, [
-                  h('h3', null, product.name),
-                  h('p', null, product.description),
-                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product)}, 'Купить')
-                ])
-              ])
-            ))),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
-          ])
-        ]);
+        return <div className="container">
+          <Header title="Магазин" />
+          <div className="content">
+            <input 
+              type="search" 
+              className="search-bar" 
+              placeholder="Поиск товаров" 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+            />
+            <div className="sections">
+              {sections.map(section => (
+                <div 
+                  className="section" 
+                  onClick={() => setSelectedSection(section.name)}
+                  style={selectedSection === section.name ? { background: '#4b9cd3' } : {}}
+                >
+                  <i className={section.icon} />
+                  <span>{section.name}</span>
+                </div>
+              ))}
+            </div>
+            <div className="product-grid">
+              {filteredProducts.map((product, index) => (
+                <div key={index} className="product-card">
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <img src={product.image} alt={product.name} className="product-image" />
+                    <p style={{ fontSize: '16px', fontWeight: 'bold', margin: '8px 0 8px -10px', textAlign: 'center' }}>{`${product.price} ₽`}</p>
+                  </div>
+                  <div>
+                    <h3>{product.name}</h3>
+                    <p>{product.description}</p>
+                    <button className="glass-button button-primary no-shine" style={{ width: '100px' }} onClick={() => setSelectedProduct(product)}>Купить</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
+          </div>
+        </div>;
       };
 
       const renderCheckout = () => {
         const contentChildren = [];
 
-        if (!paymentData) {
-          contentChildren.push(h('p', { className: 'error' }, 'Нет данных об оплате'));
-          return h('div', { className: 'container' }, [
-            Header({ title: 'Оформление заказа' }),
-            h('div', { className: 'content' }, contentChildren)
-          ]);
+        if (error) {
+          contentChildren.push(
+            <p className="error">{error}</p>,
+            <button className="glass-button button-primary no-shine" onClick={() => handleRetry(handleSubmitOrder)}>Повторить</button>,
+            <button className="glass-button button-secondary no-shine" onClick={goBack}>Назад</button>
+          );
+        } else if (selectedProduct) {
+          contentChildren.push(
+            <div className="card">
+              <h3>{`Оформление заказа: ${selectedProduct.name}`}</h3>,
+              <p>{selectedProduct.description}</p>,
+              <input
+                type="text"
+                className="search-bar"
+                placeholder="Логин"
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
+                style={{ marginTop: '10px' }}
+              />,
+              <input
+                type="password"
+                className="search-bar"
+                placeholder="Пароль"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ marginTop: '10px' }}
+              />,
+              <button
+                className="glass-button button-success no-shine"
+                onClick={handleSubmitOrder}
+                disabled={loading || !login || !password}
+                style={{ marginTop: '20px' }}
+              >
+                Оплатить
+              </button>,
+              <button
+                className="glass-button button-secondary no-shine"
+                onClick={() => {
+                  setSelectedProduct(null);
+                  setLogin('');
+                  setPassword('');
+                  goBack();
+                }}
+                disabled={loading}
+                style={{ marginTop: '10px' }}
+              >
+                Назад
+              </button>
+            </div>
+          );
         }
 
-        contentChildren.push(
-          h('div', { className: 'card' }, [
-            h('h3', null, paymentData.isProduct ? `Товар: ${paymentData.product}` : `Подписка на ${paymentData.days} дней`),
-            !paymentData.isProduct && h('p', null, [h('b', null, 'Пользователь: '), paymentData.email || "Новый пользователь"]),
-            !paymentData.isProduct && h('p', null, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
-            paymentData.isProduct && h('input', {
-              type: 'text',
-              className: 'search-bar',
-              placeholder: 'Логин',
-              value: login,
-              onChange: (e) => setLogin(e.target.value),
-              style: { marginTop: '10px' }
-            }),
-            paymentData.isProduct && h('input', {
-              type: 'password',
-              className: 'search-bar',
-              placeholder: 'Пароль',
-              value: password,
-              onChange: (e) => setPassword(e.target.value),
-              style: { marginTop: '10px' }
-            }),
-            paymentData.payment_url ? h('button', {
-              className: 'glass-button button-primary no-shine',
-              onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
-              disabled: loading,
-              style: { marginTop: '20px' }
-            }, 'Оплатить') : h('p', { className: 'error' }, 'Ссылка на оплату не доступна'),
-            h('button', {
-              className: 'glass-button button-success no-shine',
-              onClick: confirmProductPayment,
-              disabled: loading,
-              style: { marginTop: '10px' }
-            }, 'Подтвердить'),
-            h('button', {
-              className: 'glass-button button-secondary no-shine',
-              onClick: () => {
-                setSelectedProduct(null);
-                setLogin('');
-                setPassword('');
-                setPaymentData(null);
-                localStorage.removeItem("paymentData");
-                navigate("shop");
-              },
-              style: { marginTop: '10px' }
-            }, 'Назад')
-          ])
-        );
-
-        return h('div', { className: 'container' }, [
-          Header({ title: 'Оформление заказа' }),
-          h('div', { className: 'content' }, contentChildren)
-        ]);
+        return <div className="container">
+          <Header title="Оформление заказа" />
+          <div className="content">{contentChildren}</div>
+        </div>;
       };
 
-      const handleBuyProduct = async () => {
-        if (!user || !selectedProduct) {
-          Telegram.WebApp.showAlert("Ошибка: пользователь или товар не выбран");
+      const handleSubmitOrder = async () => {
+        if (!login || !password) {
+          Telegram.WebApp.showAlert('Пожалуйста, заполните оба поля: Логин и Пароль');
           return;
         }
 
         setLoading(true);
+        setError(null);
+
         try {
-          const res = await axiosInstance.post(`${API_URL}/api/buy-product`, {
+          const response = await axiosInstance.post(`${API_URL}/api/buy-product`, {
             tg_id: user.telegram_id,
             product: selectedProduct.name,
-            login: '', // Логин и пароль передаются при подтверждении
-            password: '',
+            login,
+            password,
             days: selectedProduct.days,
-            amount: selectedProduct.price
+            amount: selectedProduct.price,
           });
-          console.log('Ответ сервера:', res.data);
-          const payment = {
-            ...res.data,
-            isProduct: true,
-            product: selectedProduct.name,
-            days: selectedProduct.days,
-            amount: selectedProduct.price
-          };
-          setPaymentData(payment);
-          localStorage.setItem("paymentData", JSON.stringify(payment));
-          navigate('checkout');
+
+          const { payment_url, payment_id } = response.data;
+          setPaymentData({
+            type: 'product',
+            payment_id,
+            payment_url,
+            productName: selectedProduct.name,
+          });
+          navigate('productPayment');
         } catch (err) {
           console.error('Ошибка при создании оплаты:', err);
-          Telegram.WebApp.showAlert("Ошибка при создании оплаты");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const confirmProductPayment = async () => {
-        if (!paymentData?.payment_id) {
-          Telegram.WebApp.showAlert("Нет данных оплаты");
-          return;
-        }
-
-        setLoading(true);
-        try {
-          const payload = paymentData.isProduct 
-            ? { payment_id: paymentData.payment_id, login: login.trim(), password: password.trim() }
-            : { payment_id: paymentData.payment_id };
-          const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, payload);
-
-          if (res.data.status === "succeeded") {
-            Telegram.WebApp.showAlert(paymentData.isProduct 
-              ? `Покупка товара "${paymentData.product}" успешно подтверждена!` 
-              : `Подписка успешно активирована до ${res.data.expiry_date}!`);
-            setPaymentData(null);
-            setLogin('');
-            setPassword('');
-            localStorage.removeItem("paymentData");
-            navigate(paymentData.isProduct ? "shop" : "subscriptions");
-          } else {
-            Telegram.WebApp.showAlert("Платёж не найден");
-          }
-        } catch (err) {
-          console.error('Ошибка при подтверждении оплаты:', err);
-          Telegram.WebApp.showAlert("Ошибка при подтверждении оплаты");
+          setError(`Ошибка: ${err.response?.data?.detail || err.message}`);
         } finally {
           setLoading(false);
         }
@@ -2336,62 +2391,47 @@
         privacy: renderPrivacy,
         shop: renderShop,
         checkout: renderCheckout,
+        productPayment: renderProductPayment
       };
 
       const contentChildren = [];
 
       if (!user) {
         contentChildren.push(
-          Header({ title: 'Главное меню' }),
-          h('div', { className: 'content' }, [
-            error ? h('p', { className: 'error' }, error) : null,
-            error ? h('button', { className: 'glass-button button-primary no-shine', onClick: () => window.location.reload() }, 'Повторить') : null,
-            error ? h('button', { className: 'glass-button button-danger no-shine', onClick: () => Telegram.WebApp.close() }, 'Закрыть приложение') : null,
-            !error ? h('p', { className: 'card', style: { textAlign: 'center' } }, 'Загрузка данных пользователя...') : null
-          ])
+          <Header title="Главное меню" />,
+          <div className="content">
+            {error ? <p className="error">{error}</p> : null}
+            {error ? <button className="glass-button button-primary no-shine" onClick={() => window.location.reload()}>Повторить</button> : null}
+            {error ? <button className="glass-button button-danger no-shine" onClick={() => Telegram.WebApp.close()}>Закрыть приложение</button> : null}
+            {!error ? <p className="card" style={{ textAlign: 'center' }}>Загрузка данных пользователя...</p> : null}
+          </div>
         );
       } else {
         contentChildren.push(views[view]());
       }
 
-      return h('div', null, [
-        contentChildren,
-        viewStack.length > 0 && h('button', {
-          className: 'circular-back-button',
-          onClick: goBack
-        }, '<'),
-        selectedProduct && view === 'shop' && h('div', {
-          className: 'product-card-overlay',
-          onClick: () => setSelectedProduct(null)
-        }, [
-          h('div', {
-            className: 'product-card-content',
-            onClick: (e) => e.stopPropagation()
-          }, [
-            h('img', {
-              src: selectedProduct.image || 'https://picsum.photos/130',
-              alt: selectedProduct.name,
-              className: 'product-image'
-            }),
-            h('div', { className: 'product-details' }, [
-              h('h2', null, selectedProduct.name),
-              h('p', null, selectedProduct.description),
-              h('button', {
-                className: 'glass-button button-primary no-shine',
-                style: { width: '100px' },
-                onClick: handleBuyProduct
-              }, 'Купить')
-            ])
-          ]),
-          h('button', {
-            className: 'close-button',
-            onClick: () => setSelectedProduct(null)
-          }, '×')
-        ])
-      ]);
+      return (
+        <div>
+          {contentChildren}
+          {viewStack.length > 0 && <button className="circular-back-button" onClick={goBack}>{'<'}</button>}
+          {selectedProduct && view === 'shop' && (
+            <div className="product-card-overlay" onClick={() => setSelectedProduct(null)}>
+              <div className="product-card-content" onClick={(e) => e.stopPropagation()}>
+                <img src={selectedProduct.image || 'https://picsum.photos/130'} alt={selectedProduct.name} className="product-image" />
+                <div className="product-details">
+                  <h2>{selectedProduct.name}</h2>
+                  <p>{selectedProduct.description}</p>
+                  <button className="glass-button button-primary no-shine" style={{ width: '100px' }} onClick={() => navigate('checkout')}>Купить</button>
+                </div>
+              </div>
+              <button className="close-button" onClick={() => setSelectedProduct(null)}>×</button>
+            </div>
+          )}
+        </div>
+      );
     }
 
-    ReactDOM.render(h(App), document.getElementById('root'));
+    ReactDOM.render(<App />, document.getElementById('root'));
   </script>
 </body>
 </html>
