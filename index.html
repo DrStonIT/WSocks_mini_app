@@ -246,7 +246,7 @@
 
     .subscriptions-panel .subscription .status-active,
     .subscription .status-active {
-      colorFile: var(--status-active-color);
+      color: var(--status-active-color);
       text-decoration: underline;
     }
 
@@ -1056,7 +1056,12 @@
       }, []);
 
       const navigate = (newView) => {
-        setViewStack(prev => [...prev, view]);
+        setViewStack(prev => {
+          if (newView !== view && !['payment', 'checkout'].includes(newView)) {
+            return [...prev, view];
+          }
+          return prev;
+        });
         setView(newView);
       };
 
@@ -1065,6 +1070,8 @@
         if (viewStack.length === 0) {
           console.log('Stack empty, setting view to main');
           setView('main');
+          setPaymentData(null); // Clear paymentData when going back to main
+          localStorage.removeItem('paymentData');
           return;
         }
 
@@ -1072,6 +1079,7 @@
           let newStack = [...prevStack];
           let prevView = newStack[newStack.length - 1];
 
+          // Skip payment-related views to ensure proper navigation
           const paymentPages = ['payment', 'checkout', 'buy', 'extend'];
           while (paymentPages.includes(prevView) && newStack.length > 1) {
             console.log('Skipping payment page:', prevView);
@@ -1082,6 +1090,13 @@
           const targetView = prevView || 'main';
           console.log('Navigating to:', targetView, 'new stack:', newStack.slice(0, -1));
           setView(targetView);
+          
+          // Clear paymentData when exiting payment flow
+          if (['payment', 'checkout'].includes(view)) {
+            setPaymentData(null);
+            localStorage.removeItem('paymentData');
+          }
+
           return newStack.slice(0, -1);
         });
       };
@@ -1690,6 +1705,7 @@
         }
 
         setLoading(true);
+        setError(null); // Clear previous errors
         try {
           const response = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
             payment_id: paymentData.payment_id
@@ -1700,12 +1716,15 @@
             localStorage.removeItem('paymentData');
             await fetchSubscriptions();
             navigate('subscriptions');
-            Telegram.WebApp.showAlert(`Подписка успешно активирована на ${paymentData.days} дней до ${paymentData.expiry_date}!`);
+            Telegram.WebApp.showAlert(`Подписка успешно активирована на ${paymentData.days} дней до ${response.data.expiry_date || 'неизвестно'}!`);
           } else {
-            Telegram.WebApp.showAlert("Платёж не найден");
+            Telegram.WebApp.showAlert("Платёж ещё не подтверждён. Попробуйте снова.");
           }
         } catch (err) {
-          Telegram.WebApp.showAlert("Ошибка при проверке оплаты");
+          console.error('Ошибка при проверке оплаты:', err);
+          const errorMessage = err.response?.data?.detail || err.message || 'Неизвестная ошибка';
+          setError(`Ошибка при проверке оплаты: ${errorMessage}`);
+          Telegram.WebApp.showAlert(`Ошибка при проверке оплаты: ${errorMessage}`);
         } finally {
           setLoading(false);
         }
@@ -1718,6 +1737,7 @@
         }
 
         setLoading(true);
+        setError(null); // Clear previous errors
         try {
           const response = await axiosInstance.post(`${API_URL}/api/check-product-payment`, {
             payment_id: paymentData.payment_id
@@ -1729,32 +1749,36 @@
             navigate('shop');
             Telegram.WebApp.showAlert(`Товар "${paymentData.productName}" успешно оплачен!`);
           } else {
-            Telegram.WebApp.showAlert("Платёж не найден");
+            Telegram.WebApp.showAlert("Платёж ещё не подтверждён. Попробуйте снова.");
           }
         } catch (err) {
-          Telegram.WebApp.showAlert("Ошибка при проверке оплаты");
+          console.error('Ошибка при проверке оплаты товара:', err);
+          const errorMessage = err.response?.data?.detail || err.message || 'Неизвестная ошибка';
+          setError(`Ошибка при проверке оплаты товара: ${errorMessage}`);
+          Telegram.WebApp.showAlert(`Ошибка при проверке оплаты товара: ${errorMessage}`);
         } finally {
           setLoading(false);
         }
       };
 
       const cancelPayment = async () => {
-        if (!paymentData?.payment_id) {
-          goBack();
-          return;
-        }
-
         setLoading(true);
+        setError(null); // Clear previous errors
         try {
-          await axiosInstance.post(`${API_URL}/api/cancel-payment`, {
-            payment_id: paymentData.payment_id
-          });
-        } catch (err) {
-          console.warn('Ошибка отмены оплаты:', err);
-        } finally {
+          if (paymentData?.payment_id) {
+            await axiosInstance.post(`${API_URL}/api/cancel-payment`, {
+              payment_id: paymentData.payment_id
+            });
+          }
           setPaymentData(null);
           localStorage.removeItem('paymentData');
-          goBack();
+          navigate(viewStack.includes('checkout') ? 'shop' : 'main'); // Navigate to shop if coming from checkout
+        } catch (err) {
+          console.error('Ошибка отмены оплаты:', err);
+          const errorMessage = err.response?.data?.detail || err.message || 'Неизвестная ошибка';
+          setError(`Ошибка отмены оплаты: ${errorMessage}`);
+          Telegram.WebApp.showAlert(`Ошибка отмены оплаты: ${errorMessage}`);
+        } finally {
           setLoading(false);
         }
       };
