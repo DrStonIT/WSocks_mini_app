@@ -2294,7 +2294,7 @@
         ]);
       };
 
-      const submitOrder = async () => {
+      const handleSubmitOrder = async () => {
         if (!selectedProduct || !login || !password) {
           Telegram.WebApp.showAlert('Заполните все поля');
           return;
