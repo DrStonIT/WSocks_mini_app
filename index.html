@@ -1242,7 +1242,7 @@
 
         try {
           if (paymentData?.isProduct) {
-            const res = await axiosInstance.post(`${API_URL}/api/check-product-payment`, {
+            const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
               payment_id: paymentData.payment_id
             });
 
@@ -2361,7 +2361,7 @@
 
         setLoading(true);
         try {
-          const res = await axiosInstance.post(`${API_URL}/api/check-product-payment`, {
+          const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
             payment_id: paymentData.payment_id,
             login: login.trim(),
             password: password.trim()
