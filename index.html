@@ -997,7 +997,6 @@
       const [selectedProduct, setSelectedProduct] = useState(null);
       const [selectedSection, setSelectedSection] = useState('All');
 
-
       const API_URL = 'https://unable-karisa-del-app-cebf6c42.koyeb.app';
       const SUPPORT_LINK = 'https://t.me/WSocks_Support';
       const SUPPORT_HANDLE = '@WSocks_Support';
@@ -1016,7 +1015,7 @@
       useEffect(() => {
         console.log('Приложение запускается...');
 
-          try {
+        try {
           localStorage.removeItem('paymentData');
           setPaymentData(null);
           console.log('paymentData очищено при запуске');
@@ -1047,7 +1046,6 @@
           .then(({ data }) => {
             console.log('Ответ авторизации:', data);
             setUser(data.user);
-            // Загружаем подписки после успешной авторизации
             return axiosInstance.get(`${API_URL}/api/subscriptions?tg_id=${data.user.telegram_id}`, {
               headers: { 'Cache-Control': 'no-cache' }
             });
@@ -1258,7 +1256,6 @@
             }
           }
 
-          // VPN (оставляем как есть — старый endpoint)
           const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
             payment_id: paymentData.payment_id
           });
@@ -1284,8 +1281,6 @@
         }
       };
 
-
-
       const handleRetry = (action) => {
         setError(null);
         action();
@@ -1306,6 +1301,62 @@
 
       const toggleAllSubscriptionsPanel = () => {
         setIsAllSubscriptionsOpen(!isAllSubscriptionsOpen);
+      };
+
+      const handleBuyProduct = async (product) => {
+        try {
+          setLoading(true);
+          const response = await axiosInstance.post(`${API_URL}/api/buy-product`, {
+            tg_id: user.telegram_id,
+            product: product.name,
+            days: product.days,
+          });
+          setPaymentData(response.data);
+          setSelectedProduct(product);
+          navigate('checkout');
+        } catch (err) {
+          setError('Ошибка создания платежа для продукта');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const confirmProductPayment = async () => {
+        if (!paymentData?.payment_id) {
+          Telegram.WebApp.showAlert("Нет данных оплаты");
+          return;
+        }
+
+        if (!login || !password) {
+          Telegram.WebApp.showAlert("Введите логин и пароль перед подтверждением");
+          return;
+        }
+
+        setLoading(true);
+        try {
+          const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
+            payment_id: paymentData.payment_id,
+            login: login.trim(),
+            password: password.trim()
+          });
+
+          if (res.data.status === "succeeded") {
+            Telegram.WebApp.showAlert(`Покупка товара "${paymentData.product}" подтверждена!`);
+            setSelectedProduct(null);
+            setLogin('');
+            setPassword('');
+            setPaymentData(null);
+            localStorage.removeItem("paymentData");
+            navigate("shop");
+          } else {
+            Telegram.WebApp.showAlert("Платёж не найден");
+          }
+        } catch (err) {
+          console.error(err);
+          Telegram.WebApp.showAlert("Ошибка при подтверждении оплаты");
+        } finally {
+          setLoading(false);
+        }
       };
 
       const Header = ({ title }) => {
@@ -1762,8 +1813,6 @@
         }
       };
 
-
-
       const renderPayment = () => {
         const contentChildren = [];
 
@@ -1783,13 +1832,11 @@
               onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
               disabled: loading
             }, 'Оплатить'),
-
             h('button', {
               className: 'glass-button button-success no-shine',
               onClick: confirmPayment,
               disabled: loading
             }, 'Подтвердить'),
-
             h('button', {
               className: 'glass-button button-danger no-shine',
               onClick: cancelPayment,
@@ -2067,140 +2114,140 @@
           { name: 'Grok', icon: 'fas fa-brain' }
         ];
 
-       const testProducts = [
-      {
-        name: 'Spotify',
-        products: [
+        const testProducts = [
           {
-            name: 'Spotify - 1 месяц',
-            description: 'Получите полный доступ к Spotify Premium на 1 месяц. Наслаждайтесь музыкой без рекламы, оффлайн-прослушиванием и высоким качеством звука на всех устройствах.',
-            days: 30,
-            image: 'images/spotify.jpg',
-            price: 89
+            name: 'Spotify',
+            products: [
+              {
+                name: 'Spotify - 1 месяц',
+                description: 'Получите полный доступ к Spotify Premium на 1 месяц. Наслаждайтесь музыкой без рекламы, оффлайн-прослушиванием и высоким качеством звука на всех устройствах.',
+                days: 30,
+                image: 'images/spotify.jpg',
+                price: 89
+              },
+              {
+                name: 'Spotify - 3 месяца',
+                description: 'Подписка на Spotify Premium на 3 месяца. Слушайте миллионы треков без рекламы, скачивайте музыку для оффлайн-воспроизведения и наслаждайтесь персонализированными плейлистами.',
+                days: 90,
+                image: 'images/spotify.jpg',
+                price: 89
+              },
+              {
+                name: 'Spotify - 6 месяцев',
+                description: 'Шестимесячная подписка на Spotify Premium. Получите все преимущества Premium, включая неограниченный доступ к подкастам и высококачественное аудио, на длительный срок.',
+                days: 180,
+                image: 'images/spotify.jpg',
+                price: 89
+              },
+              {
+                name: 'Spotify - 1 год',
+                description: 'Годовая подписка на Spotify Premium. Экономьте с длительным доступом к музыке без рекламы, оффлайн-режиму и эксклюзивным функциям для меломанов.',
+                days: 360,
+                image: 'images/spotify.jpg',
+                price: 89
+              }
+            ]
           },
           {
-            name: 'Spotify - 3 месяца',
-            description: 'Подписка на Spotify Premium на 3 месяца. Слушайте миллионы треков без рекламы, скачивайте музыку для оффлайн-воспроизведения и наслаждайтесь персонализированными плейлистами.',
-            days: 90,
-            image: 'images/spotify.jpg',
-            price: 89
+            name: 'ChatGPT / Sora',
+            products: [
+              {
+                name: 'ChatGPT / Sora - 1 месяц',
+                description: 'Доступ к ChatGPT Plus и Sora на 1 месяц. Используйте продвинутые функции ИИ для генерации текста, кода и мультимедиа с максимальной производительностью.',
+                days: 30,
+                image: 'images/chatgpt.jpg', 
+                price: 89
+              },
+              {
+                name: 'ChatGPT / Sora - 3 месяца',
+                description: 'Трехмесячная подписка на ChatGPT Plus и Sora. Получите расширенные возможности ИИ, включая создание сложных текстов и мультимедийного контента.',
+                days: 90,
+                image: 'images/chatgpt.jpg',
+                price: 89
+              },
+              {
+                name: 'ChatGPT / Sora - 6 месяцев',
+                description: 'Полугодовая подписка на ChatGPT Plus и Sora. Идеально для профессионалов, использующих ИИ для автоматизации задач и создания контента.',
+                days: 180,
+                image: 'images/chatgpt.jpg',
+                price: 89
+              },
+              {
+                name: 'ChatGPT / Sora - 1 год',
+                description: 'Годовой доступ к ChatGPT Plus и Sora. Максимальная выгода для долгосрочного использования ИИ в работе, учебе или творчестве.',
+                days: 360,
+                image: 'images/chatgpt.jpg',
+                price: 89
+              }
+            ]
           },
           {
-            name: 'Spotify - 6 месяцев',
-            description: 'Шестимесячная подписка на Spotify Premium. Получите все преимущества Premium, включая неограниченный доступ к подкастам и высококачественное аудио, на длительный срок.',
-            days: 180,
-            image: 'images/spotify.jpg',
-            price: 89
+            name: 'Telegram',
+            products: [
+              {
+                name: 'Telegram - 1 месяц',
+                description: 'Подписка Telegram Premium на 1 месяц. Получите эксклюзивные стикеры, увеличенные лимиты на чаты и файлы, а также ускоренную загрузку.',
+                days: 30,
+                image: 'images/telegram.png',
+                price: 89
+              },
+              {
+                name: 'Telegram - 3 месяца',
+                description: 'Трехмесячная подписка Telegram Premium. Наслаждайтесь расширенными функциями, такими как управление папками и приоритетная поддержка.',
+                days: 90,
+                image: 'images/telegram.png',
+                price: 89
+              },
+              {
+                name: 'Telegram - 6 месяцев',
+                description: 'Шестимесячная подписка Telegram Premium. Получите доступ к уникальным функциям и улучшенному интерфейсу для комфортного общения.',
+                days: 180,
+                image: 'images/telegram.png',
+                price: 89
+              },
+              {
+                name: 'Telegram - 1 год',
+                description: 'Годовая подписка Telegram Premium. Экономьте с долгосрочным доступом к эксклюзивным функциям и улучшенному опыту использования.',
+                days: 360,
+                image: 'images/telegram.png',
+                price: 89
+              }
+            ]
           },
           {
-            name: 'Spotify - 1 год',
-            description: 'Годовая подписка на Spotify Premium. Экономьте с длительным доступом к музыке без рекламы, оффлайн-режиму и эксклюзивным функциям для меломанов.',
-            days: 360,
-            image: 'images/spotify.jpg',
-            price: 89
-          }
-        ]
-      },
-      {
-        name: 'ChatGPT / Sora',
-        products: [
-          {
-            name: 'ChatGPT / Sora - 1 месяц',
-            description: 'Доступ к ChatGPT Plus и Sora на 1 месяц. Используйте продвинутые функции ИИ для генерации текста, кода и мультимедиа с максимальной производительностью.',
-            days: 30,
-            image: 'images/chatgpt.jpg', 
-            price: 89
+            name: 'Grok',
+            products: [
+              {
+                name: 'Grok - 1 месяц',
+                description: 'Подписка на Grok от xAI на 1 месяц. Получите доступ к мощному ИИ для ответов на сложные вопросы и выполнения задач.',
+                days: 30,
+                image: 'images/grok.jpg',
+                price: 89
+              },
+              {
+                name: 'Grok - 3 месяца',
+                description: 'Трехмесячная подписка на Grok. Используйте ИИ для исследований, обучения и автоматизации с расширенными возможностями.',
+                days: 90,
+                image: 'images/grok.jpg',
+                price: 249
+              },
+              {
+                name: 'Grok - 6 месяцев',
+                description: 'Полугодовая подписка на Grok. Подходит для пользователей, ищущих долгосрочный доступ к ИИ для работы и учебы.',
+                days: 180,
+                image: 'images/grok.jpg',
+                price: 499
+              },
+              {
+                name: 'Grok - 1 год',
+                description: 'Годовая подписка на Grok. Максимальная выгода для постоянного использования ИИ от xAI в различных задачах.',
+                days: 360,
+                image: 'images/grok.jpg',
+                price: 899
+              }
+            ]
           },
-          {
-            name: 'ChatGPT / Sora - 3 месяца',
-            description: 'Трехмесячная подписка на ChatGPT Plus и Sora. Получите расширенные возможности ИИ, включая создание сложных текстов и мультимедийного контента.',
-            days: 90,
-            image: 'images/chatgpt.jpg',
-            price: 89
-          },
-          {
-            name: 'ChatGPT / Sora - 6 месяцев',
-            description: 'Полугодовая подписка на ChatGPT Plus и Sora. Идеально для профессионалов, использующих ИИ для автоматизации задач и создания контента.',
-            days: 180,
-            image: 'images/chatgpt.jpg',
-            price: 89
-          },
-          {
-            name: 'ChatGPT / Sora - 1 год',
-            description: 'Годовой доступ к ChatGPT Plus и Sora. Максимальная выгода для долгосрочного использования ИИ в работе, учебе или творчестве.',
-            days: 360,
-            image: 'images/chatgpt.jpg',
-            price: 89
-          }
-        ]
-      },
-      {
-        name: 'Telegram',
-        products: [
-          {
-            name: 'Telegram - 1 месяц',
-            description: 'Подписка Telegram Premium на 1 месяц. Получите эксклюзивные стикеры, увеличенные лимиты на чаты и файлы, а также ускоренную загрузку.',
-            days: 30,
-            image: 'images/telegram.png',
-            price: 89
-          },
-          {
-            name: 'Telegram - 3 месяца',
-            description: 'Трехмесячная подписка Telegram Premium. Наслаждайтесь расширенными функциями, такими как управление папками и приоритетная поддержка.',
-            days: 90,
-            image: 'images/telegram.png',
-            price: 89
-          },
-          {
-            name: 'Telegram - 6 месяцев',
-            description: 'Шестимесячная подписка Telegram Premium. Получите доступ к уникальным функциям и улучшенному интерфейсу для комфортного общения.',
-            days: 180,
-            image: 'images/telegram.png',
-            price: 89
-          },
-          {
-            name: 'Telegram - 1 год',
-            description: 'Годовая подписка Telegram Premium. Экономьте с долгосрочным доступом к эксклюзивным функциям и улучшенному опыту использования.',
-            days: 360,
-            image: 'images/telegram.png',
-            price: 89
-          }
-        ]
-      },
-      {
-        name: 'Grok',
-        products: [
-          {
-            name: 'Grok - 1 месяц',
-            description: 'Подписка на Grok от xAI на 1 месяц. Получите доступ к мощному ИИ для ответов на сложные вопросы и выполнения задач.',
-            days: 30,
-            image: 'images/grok.jpg',
-            price: 89
-          },
-          {
-            name: 'Grok - 3 месяца',
-            description: 'Трехмесячная подписка на Grok. Используйте ИИ для исследований, обучения и автоматизации с расширенными возможностями.',
-            days: 90,
-            image: 'images/grok.jpg',
-            price: 249
-          },
-          {
-            name: 'Grok - 6 месяцев',
-            description: 'Полугодовая подписка на Grok. Подходит для пользователей, ищущих долгосрочный доступ к ИИ для работы и учебы.',
-            days: 180,
-            image: 'images/grok.jpg',
-            price: 499
-          },
-          {
-            name: 'Grok - 1 год',
-            description: 'Годовая подписка на Grok. Максимальная выгода для постоянного использования ИИ от xAI в различных задачах.',
-            days: 360,
-            image: 'images/grok.jpg',
-            price: 899
-          }
-        ]
-      },
-    ];
+        ];
 
         const allProducts = testProducts.flatMap(p => p.products);
 
@@ -2236,7 +2283,7 @@
                 h('div', null, [
                   h('h3', null, product.name),
                   h('p', null, product.description),
-                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product)}, 'Купить')
+                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => handleBuyProduct(product) }, 'Купить')
                 ])
               ])
             ))),
@@ -2275,21 +2322,18 @@
               onChange: (e) => setPassword(e.target.value),
               style: { marginTop: '10px' }
             }),
-
             h('button', {
               className: 'glass-button button-primary no-shine',
               onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
               disabled: loading || !login || !password,
               style: { marginTop: '20px' }
             }, 'Оплатить'),
-
             h('button', {
               className: 'glass-button button-success no-shine',
               onClick: confirmProductPayment,
               disabled: loading,
               style: { marginTop: '10px' }
             }, 'Подтвердить'),
-
             h('button', {
               className: 'glass-button button-secondary no-shine',
               onClick: () => {
@@ -2310,115 +2354,6 @@
           h('div', { className: 'content' }, contentChildren)
         ]);
       };
-
-
-      const handleBuyProduct = async () => {
-        try {
-          setLoading(true);
-
-          const res = await axiosInstance.post(`${API_URL}/api/buy-product`, {
-            tg_id: user.telegram_id,
-            product: selectedProduct.name,
-            login,
-            password,
-            days: selectedProduct.days,
-            amount: selectedProduct.price
-          });
-
-          const payment = {
-            ...res.data,
-            isProduct: true,
-            product: selectedProduct.name,
-            login,
-            password,
-            days: selectedProduct.days,
-            amount: selectedProduct.price
-          };
-
-          setPaymentData(payment);
-          localStorage.setItem("paymentData", JSON.stringify(payment));
-
-        } catch (err) {
-          console.error('Ошибка при создании оплаты:', err);
-          Telegram.WebApp.showAlert("Ошибка при создании оплаты");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-
-
-      const confirmProductPayment = async () => {
-        if (!paymentData?.payment_id) {
-          Telegram.WebApp.showAlert("Нет данных оплаты");
-          return;
-        }
-
-        if (!login || !password) {
-          Telegram.WebApp.showAlert("Введите логин и пароль перед подтверждением");
-          return;
-        }
-
-        setLoading(true);
-        try {
-          const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
-            payment_id: paymentData.payment_id,
-            login: login.trim(),
-            password: password.trim()
-          });
-
-          if (res.data.status === "succeeded") {
-            Telegram.WebApp.showAlert(`Покупка товара "${paymentData.product}" подтверждена!`);
-            setSelectedProduct(null);
-            setLogin('');
-            setPassword('');
-            setPaymentData(null);
-            localStorage.removeItem("paymentData");
-            navigate("shop");
-          } else {
-            Telegram.WebApp.showAlert("Платёж не найден");
-          }
-        } catch (err) {
-          console.error(err);
-          Telegram.WebApp.showAlert("Ошибка при подтверждении оплаты");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-
-
-      const handleSubmitOrder = async () => {
-        if (!selectedProduct || !login || !password) {
-          Telegram.WebApp.showAlert('Заполните все поля');
-          return;
-        }
-
-        try {
-          const response = await axiosInstance.post(`${API_URL}/api/buy-product`, {
-            tg_id: user.telegram_id, // <-- исправлено
-            product: selectedProduct.name,
-            login,
-            password,
-            days: selectedProduct.days
-          });
-
-          setPaymentData({
-            ...response.data,
-            isProduct: true,
-            product: selectedProduct.name,
-            login,
-            password,
-            days: selectedProduct.days
-          });
-
-          navigate('product-payment');
-        } catch (err) {
-          console.error(err);
-          Telegram.WebApp.showAlert("Ошибка при создании оплаты товара");
-        }
-      };
-
 
       const views = {
         main: renderMainMenu,
@@ -2459,74 +2394,41 @@
         contentChildren.push(views[view]());
       }
 
-    return h('div', null, [
-      contentChildren,
-
-      viewStack.length > 0 && h('button', {
-        className: 'circular-back-button',
-        onClick: goBack
-      }, '<'),
-
-      selectedProduct && view === 'shop' && h('div', {
-        className: 'product-card-overlay',
-        onClick: () => setSelectedProduct(null)
-      }, [
-
-        h('div', {
-          className: 'product-card-content',
-          onClick: (e) => e.stopPropagation()
-        }, [
-          h('img', {
-            src: selectedProduct.image || 'https://picsum.photos/130',
-            alt: selectedProduct.name,
-            className: 'product-image'
-          }),
-          h('div', { className: 'product-details' }, [
-            h('h2', null, selectedProduct.name),
-            h('p', null, selectedProduct.description),
-            h('button', {
-              className: 'glass-button button-primary no-shine',
-              style: { width: '100px' },
-              onClick: async () => {
-                try {
-                  const res = await axiosInstance.post(`${API_URL}/api/buy-product`, {
-                    tg_id: user.telegram_id,
-                    product: selectedProduct.name,
-                    login: '', 
-                    password: '', 
-                    days: selectedProduct.days,
-                    amount: selectedProduct.amount
-                  });
-
-                  const payment = {
-                    ...res.data,
-                    isProduct: true,
-                    product: selectedProduct.name,
-                    login: '',
-                    password: '',
-                    days: selectedProduct.days,
-                    amount: selectedProduct.amount
-                  };
-
-                  setPaymentData(payment);
-                  localStorage.setItem('paymentData', JSON.stringify(payment));
-                  navigate('checkout');
-                } catch (err) {
-                  console.error('Ошибка при создании оплаты:', err);
-                  Telegram.WebApp.showAlert('Ошибка при создании оплаты');
-                }
-              }
-            }, 'Купить')
-          ])
-        ]),
-
-        h('button', {
-          className: 'close-button',
+      return h('div', null, [
+        contentChildren,
+        viewStack.length > 0 && h('button', {
+          className: 'circular-back-button',
+          onClick: goBack
+        }, '<'),
+        selectedProduct && view === 'shop' && h('div', {
+          className: 'product-card-overlay',
           onClick: () => setSelectedProduct(null)
-        }, '×')
-      ])
-    ]);
-
+        }, [
+          h('div', {
+            className: 'product-card-content',
+            onClick: (e) => e.stopPropagation()
+          }, [
+            h('img', {
+              src: selectedProduct.image || 'https://picsum.photos/130',
+              alt: selectedProduct.name,
+              className: 'product-image'
+            }),
+            h('div', { className: 'product-details' }, [
+              h('h2', null, selectedProduct.name),
+              h('p', null, selectedProduct.description),
+              h('button', {
+                className: 'glass-button button-primary no-shine',
+                style: { width: '100px' },
+                onClick: () => handleBuyProduct(selectedProduct)
+              }, 'Купить')
+            ])
+          ]),
+          h('button', {
+            className: 'close-button',
+            onClick: () => setSelectedProduct(null)
+          }, '×')
+        ])
+      ]);
     }
 
     ReactDOM.render(h(App), document.getElementById('root'));
