@@ -2124,8 +2124,10 @@
             ))),
             h('div', { className: 'product-grid' }, filteredProducts.map((product, index) => (
               h('div', { key: index, className: 'product-card' }, [
-                h('img', { src: product.image, alt: product.name, className: 'product-image' }),
-                h('p', { style: { fontSize: '14px', fontWeight: 'bold', margin: '8px 0', textAlign: 'center' } }, `${product.price} ₽`),
+                h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center' } }, [
+                  h('img', { src: product.image, alt: product.name, className: 'product-image' }),
+                  h('p', { style: { fontSize: '14px', fontWeight: 'bold', margin: '8px 0', textAlign: 'center' } }, `${product.price} ₽`)
+                ]),
                 h('div', null, [
                   h('h3', null, product.name),
                   h('p', null, product.description),
