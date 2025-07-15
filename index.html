@@ -1038,6 +1038,7 @@
           .then(({ data }) => {
             console.log('Ответ авторизации:', data);
             setUser(data.user);
+            // Загружаем подписки после успешной авторизации
             return axiosInstance.get(`${API_URL}/api/subscriptions?tg_id=${data.user.telegram_id}`, {
               headers: { 'Cache-Control': 'no-cache' }
             });
@@ -1054,11 +1055,6 @@
             setLoading(false);
           });
       }, []);
-
-      const navigate = (newView) => {
-        setViewStack(prev => [...prev, view]);
-        setView(newView);
-      };
 
       const goBack = () => {
         console.log('goBack called, current view:', view, 'viewStack:', viewStack);
