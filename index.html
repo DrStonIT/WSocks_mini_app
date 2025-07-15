@@ -1776,6 +1776,7 @@
         ]);
       };
 
+
       const renderProductPayment = () => {
         const contentChildren = [];
 
@@ -2252,45 +2253,41 @@
           ? allProducts.filter(product => product.name.toLowerCase().includes(searchTerm.toLowerCase()))
           : testProducts.find(p => p.name === selectedSection)?.products.filter(product => product.name.toLowerCase().includes(searchTerm.toLowerCase())) || [];
 
-        return <div className="container">
-          <Header title="Магазин" />
-          <div className="content">
-            <input 
-              type="search" 
-              className="search-bar" 
-              placeholder="Поиск товаров" 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-            />
-            <div className="sections">
-              {sections.map(section => (
-                <div 
-                  className="section" 
-                  onClick={() => setSelectedSection(section.name)}
-                  style={selectedSection === section.name ? { background: '#4b9cd3' } : {}}
-                >
-                  <i className={section.icon} />
-                  <span>{section.name}</span>
-                </div>
-              ))}
-            </div>
-            <div className="product-grid">
-              {filteredProducts.map((product, index) => (
-                <div key={index} className="product-card">
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <img src={product.image} alt={product.name} className="product-image" />
-                    <p style={{ fontSize: '16px', fontWeight: 'bold', margin: '8px 0 8px -10px', textAlign: 'center' }}>{`${product.price} ₽`}</p>
-                  </div>
-                  <div>
-                    <h3>{product.name}</h3>
-                    <p>{product.description}</p>
-                    <button className="glass-button button-primary no-shine" style={{ width: '100px' }} onClick={() => setSelectedProduct(product)}>Купить</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button className="glass-button button-secondary no-shine" onClick={goBack} disabled={loading}>Назад</button>
-          </div>
-        </div>;
+        return h('div', { className: 'container' }, [
+          Header({ title: 'Магазин' }),
+          h('div', { className: 'content' }, [
+            h('input', { 
+              type: 'search', 
+              className: 'search-bar', 
+              placeholder: 'Поиск товаров', 
+              onChange: (e) => setSearchTerm(e.target.value) 
+            }),
+            h('div', { className: 'sections' }, sections.map(section => (
+              h('div', { 
+                className: 'section', 
+                onClick: () => setSelectedSection(section.name),
+                style: selectedSection === section.name ? { background: '#4b9cd3' } : {}
+              }, [
+                h('i', { className: section.icon }),
+                h('span', null, section.name)
+              ])
+            ))),
+            h('div', { className: 'product-grid' }, filteredProducts.map((product, index) => (
+              h('div', { key: index, className: 'product-card' }, [
+                h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center' } }, [
+                  h('img', { src: product.image, alt: product.name, className: 'product-image' }),
+                  h('p', { style: { fontSize: '16px', fontWeight: 'bold', margin: '8px 0 8px -10px', textAlign: 'center' } }, `${product.price} ₽`)
+                ]),
+                h('div', null, [
+                  h('h3', null, product.name),
+                  h('p', null, product.description),
+                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product)}, 'Купить')
+                ])
+              ])
+            ))),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack, disabled: loading }, 'Назад')
+          ])
+        ]);
       };
 
       const renderCheckout = () => {
@@ -2409,7 +2406,8 @@
         terms: renderTerms,
         privacy: renderPrivacy,
         shop: renderShop,
-        checkout: renderCheckout
+        checkout: renderCheckout,
+        productPayment: renderProductPayment
       };
 
       const contentChildren = [];
