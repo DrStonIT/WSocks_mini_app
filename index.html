@@ -1015,6 +1015,14 @@
 
       useEffect(() => {
         console.log('Приложение запускается...');
+
+          try {
+          localStorage.removeItem('paymentData');
+          setPaymentData(null);
+          console.log('paymentData очищено при запуске');
+        } catch (e) {
+          console.warn('Ошибка при очистке paymentData:', e);
+        }
         if (!window.Telegram || !window.Telegram.WebApp) {
           setError('Telegram Web App SDK не загружен');
           setLoading(false);
@@ -2260,7 +2268,7 @@
                 type: 'text',
                 className: 'search-bar',
                 placeholder: 'Логин',
-                defaultValue: login,
+                value: login,
                 onChange: (e) => setLogin(e.target.value),
                 style: { marginTop: '10px' }
               }),
@@ -2268,7 +2276,7 @@
                 type: 'password',
                 className: 'search-bar',
                 placeholder: 'Пароль',
-                defaultValue: password,
+                value: password,
                 onChange: (e) => setPassword(e.target.value),
                 style: { marginTop: '10px' }
               }),
@@ -2293,13 +2301,13 @@
               h('button', {
                 className: 'glass-button button-secondary no-shine',
                 onClick: () => {
-                  setSelectedProduct(null);
-                  setLogin('');
-                  setPassword('');
-                  setPaymentData(null);
-                  localStorage.removeItem("paymentData");
-                  goBack();
-                },
+                setSelectedProduct(null);
+                setLogin('');
+                setPassword('');
+                setPaymentData(null);
+                localStorage.removeItem("paymentData");
+                navigate("shop");
+              },
                 disabled: loading,
                 style: { marginTop: '10px' }
               }, 'Назад')
