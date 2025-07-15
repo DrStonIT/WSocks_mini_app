@@ -1225,25 +1225,34 @@
       }, 500);
 
       const confirmActivation = async () => {
-        if (!user || !paymentData) {
-          setError('Данные для активации отсутствуют');
+        if (!user || !paymentData?.payment_id) {
+          setError('Данные оплаты отсутствуют');
           return;
         }
+
         setLoading(true);
         setError(null);
         try {
-          navigate('subscriptions');
-          await fetchSubscriptions();
-          Telegram.WebApp.showAlert(
-            paymentData.isExtension 
-              ? `Подписка успешно продлена на ${paymentData.days} дней до ${paymentData.expiry_date}!` 
-              : `Подписка успешно активирована на ${paymentData.days} дней до ${paymentData.expiry_date}!`
-          );
-          setPaymentData(null);
-          localStorage.removeItem('paymentData');
+          const response = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
+            payment_id: paymentData.payment_id
+          });
+
+          if (response.data.status === 'succeeded') {
+            await fetchSubscriptions();
+            navigate('subscriptions');
+            Telegram.WebApp.showAlert(
+              paymentData.isExtension
+                ? `Подписка продлена на ${paymentData.days} дней до ${response.data.expiry_date}!`
+                : `Подписка активирована на ${paymentData.days} дней до ${response.data.expiry_date}!`
+            );
+            setPaymentData(null);
+            localStorage.removeItem('paymentData');
+          } else {
+            Telegram.WebApp.showAlert("Платёж не найден");
+          }
         } catch (err) {
-          console.error('Ошибка подтверждения активации:', err);
-          setError(`Ошибка подтверждения активации: ${err.message}`);
+          setError(`Ошибка при проверке оплаты: ${err.message}`);
+          console.error(err);
         } finally {
           setLoading(false);
         }
