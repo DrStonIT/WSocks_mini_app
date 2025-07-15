@@ -1250,7 +1250,7 @@
             }
           }
 
-          // VPN-платёж (старый endpoint)
+          // VPN (оставляем как есть — старый endpoint)
           const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
             payment_id: paymentData.payment_id
           });
@@ -1275,6 +1275,7 @@
           setLoading(false);
         }
       };
+
 
 
       const handleRetry = (action) => {
@@ -2303,10 +2304,9 @@
           const response = await axiosInstance.post(`${API_URL}/api/buy-product`, {
             tg_id: user.id,
             product: selectedProduct,
-            login: login,
-            password: password,
-            days: selectedProduct.days,
-            amount: selectedProduct.price
+            login,
+            password,
+            days: 30  // Или значение из интерфейса
           });
 
           setPaymentData({
@@ -2323,6 +2323,7 @@
           console.error(err);
         }
       };
+
 
       const views = {
         main: renderMainMenu,
