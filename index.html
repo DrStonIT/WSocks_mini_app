@@ -1225,38 +1225,57 @@
       }, 500);
 
       const confirmActivation = async () => {
-        if (!user || !paymentData?.payment_id) {
-          setError('Данные оплаты отсутствуют');
+        if (!paymentData?.payment_id) {
+          Telegram.WebApp.showAlert("Нет данных оплаты");
           return;
         }
 
         setLoading(true);
-        setError(null);
+
         try {
-          const response = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
+          if (paymentData?.isProduct) {
+            const res = await axiosInstance.post(`${API_URL}/api/check-product-payment`, {
+              payment_id: paymentData.payment_id
+            });
+
+            if (res.data.status === "succeeded") {
+              Telegram.WebApp.showAlert(`Покупка товара "${paymentData.product}" успешно подтверждена!`);
+              navigate("shop");
+              setPaymentData(null);
+              localStorage.removeItem("paymentData");
+              return;
+            } else {
+              Telegram.WebApp.showAlert("Платёж не найден");
+              return;
+            }
+          }
+
+          // VPN-платёж (старый endpoint)
+          const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
             payment_id: paymentData.payment_id
           });
 
-          if (response.data.status === 'succeeded') {
+          if (res.data.status === "succeeded") {
             await fetchSubscriptions();
-            navigate('subscriptions');
             Telegram.WebApp.showAlert(
               paymentData.isExtension
-                ? `Подписка продлена на ${paymentData.days} дней до ${response.data.expiry_date}!`
-                : `Подписка активирована на ${paymentData.days} дней до ${response.data.expiry_date}!`
+                ? `Подписка продлена до ${res.data.expiry_date}`
+                : `Подписка активирована до ${res.data.expiry_date}`
             );
+            navigate("subscriptions");
             setPaymentData(null);
-            localStorage.removeItem('paymentData');
+            localStorage.removeItem("paymentData");
           } else {
             Telegram.WebApp.showAlert("Платёж не найден");
           }
         } catch (err) {
-          setError(`Ошибка при проверке оплаты: ${err.message}`);
+          Telegram.WebApp.showAlert("Ошибка при подтверждении оплаты");
           console.error(err);
         } finally {
           setLoading(false);
         }
       };
+
 
       const handleRetry = (action) => {
         setError(null);
@@ -2274,38 +2293,34 @@
         ]);
       };
 
-      const handleSubmitOrder = async () => {
-        if (!login || !password) {
-          Telegram.WebApp.showAlert('Пожалуйста, заполните оба поля: Логин и Пароль');
+      const submitOrder = async () => {
+        if (!selectedProduct || !login || !password) {
+          Telegram.WebApp.showAlert('Заполните все поля');
           return;
         }
 
-        setLoading(true);
-        setError(null);
-
         try {
-          const response = await axiosInstance.post(`${API_URL}/api/submit-order`, {
-            telegram_id: user.telegram_id,
-            product: selectedProduct.name,
-            login,
-            password,
+          const response = await axiosInstance.post(`${API_URL}/api/buy-product`, {
+            tg_id: user.id,
+            product: selectedProduct,
+            login: login,
+            password: password,
             days: selectedProduct.days,
+            amount: selectedProduct.price
           });
 
-          if (response.status === 200) {
-            Telegram.WebApp.showAlert('Заказ успешно отправлен!');
-            setSelectedProduct(null);
-            setLogin('');
-            setPassword('');
-            navigate('main');
-          } else {
-            setError('Ошибка при отправке заказа');
-          }
+          setPaymentData({
+            ...response.data,
+            isProduct: true,
+            product: selectedProduct,
+            login,
+            password
+          });
+
+          navigate('payment');
         } catch (err) {
-          console.error('Ошибка отправки заказа:', err);
-          setError(`Ошибка отправки заказа: ${err.response?.data?.detail || err.message}`);
-        } finally {
-          setLoading(false);
+          Telegram.WebApp.showAlert("Ошибка при создании оплаты товара");
+          console.error(err);
         }
       };
 
