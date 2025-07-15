@@ -1015,14 +1015,6 @@
 
       useEffect(() => {
         console.log('Приложение запускается...');
-
-          try {
-          localStorage.removeItem('paymentData');
-          setPaymentData(null);
-          console.log('paymentData очищено при запуске');
-        } catch (e) {
-          console.warn('Ошибка при очистке paymentData:', e);
-        }
         if (!window.Telegram || !window.Telegram.WebApp) {
           setError('Telegram Web App SDK не загружен');
           setLoading(false);
@@ -1233,58 +1225,38 @@
       }, 500);
 
       const confirmActivation = async () => {
-        if (!paymentData?.payment_id) {
-          Telegram.WebApp.showAlert("Нет данных оплаты");
+        if (!user || !paymentData?.payment_id) {
+          setError('Данные оплаты отсутствуют');
           return;
         }
 
         setLoading(true);
-
+        setError(null);
         try {
-          if (paymentData?.isProduct) {
-            const res = await axiosInstance.post(`${API_URL}/api/check-product-payment`, {
-              payment_id: paymentData.payment_id
-            });
-
-            if (res.data.status === "succeeded") {
-              Telegram.WebApp.showAlert(`Покупка товара "${paymentData.product}" успешно подтверждена!`);
-              navigate("shop");
-              setPaymentData(null);
-              localStorage.removeItem("paymentData");
-              return;
-            } else {
-              Telegram.WebApp.showAlert("Платёж не найден");
-              return;
-            }
-          }
-
-          // VPN (оставляем как есть — старый endpoint)
-          const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
+          const response = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
             payment_id: paymentData.payment_id
           });
 
-          if (res.data.status === "succeeded") {
+          if (response.data.status === 'succeeded') {
             await fetchSubscriptions();
+            navigate('subscriptions');
             Telegram.WebApp.showAlert(
               paymentData.isExtension
-                ? `Подписка продлена до ${res.data.expiry_date}`
-                : `Подписка активирована до ${res.data.expiry_date}`
+                ? `Подписка продлена на ${paymentData.days} дней до ${response.data.expiry_date}!`
+                : `Подписка активирована на ${paymentData.days} дней до ${response.data.expiry_date}!`
             );
-            navigate("subscriptions");
             setPaymentData(null);
-            localStorage.removeItem("paymentData");
+            localStorage.removeItem('paymentData');
           } else {
             Telegram.WebApp.showAlert("Платёж не найден");
           }
         } catch (err) {
-          Telegram.WebApp.showAlert("Ошибка при подтверждении оплаты");
+          setError(`Ошибка при проверке оплаты: ${err.message}`);
           console.error(err);
         } finally {
           setLoading(false);
         }
       };
-
-
 
       const handleRetry = (action) => {
         setError(null);
@@ -1776,7 +1748,7 @@
         } else if (paymentData) {
           contentChildren.push(
             h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
-            h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), paymentData.email ? paymentData.email : "Новый пользователь"]),
+            h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), 'Новый пользователь']),
             h('p', { className: 'card' }, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
             h('button', {
               className: 'glass-button button-primary no-shine',
@@ -2182,21 +2154,21 @@
             description: 'Трехмесячная подписка на Grok. Используйте ИИ для исследований, обучения и автоматизации с расширенными возможностями.',
             days: 90,
             image: 'images/grok.jpg',
-            price: 249
+            price: 89
           },
           {
             name: 'Grok - 6 месяцев',
             description: 'Полугодовая подписка на Grok. Подходит для пользователей, ищущих долгосрочный доступ к ИИ для работы и учебы.',
             days: 180,
             image: 'images/grok.jpg',
-            price: 499
+            price: 89
           },
           {
             name: 'Grok - 1 год',
             description: 'Годовая подписка на Grok. Максимальная выгода для постоянного использования ИИ от xAI в различных задачах.',
             days: 360,
             image: 'images/grok.jpg',
-            price: 899
+            price: 89
           }
         ]
       },
@@ -2248,62 +2220,53 @@
       const renderCheckout = () => {
         const contentChildren = [];
 
-        if (!paymentData) {
-          contentChildren.push(h('p', { className: 'error' }, 'Нет данных об оплате'));
-          return h('div', { className: 'container' }, [
-            Header({ title: 'Оформление заказа' }),
-            h('div', { className: 'content' }, contentChildren)
-          ]);
+        if (error) {
+          contentChildren.push(
+            h('p', { className: 'error' }, error),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(handleSubmitOrder) }, 'Повторить'),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
+          );
+        } else if (selectedProduct) {
+          contentChildren.push(
+            h('div', { className: 'card' }, [
+              h('h3', null, `Оформление заказа: ${selectedProduct.name}`),
+              h('p', null, selectedProduct.description),
+              h('input', {
+                type: 'text',
+                className: 'search-bar',
+                placeholder: 'Логин',
+                value: login,
+                onChange: (e) => setLogin(e.target.value),
+                style: { marginTop: '10px' }
+              }),
+              h('input', {
+                type: 'password',
+                className: 'search-bar',
+                placeholder: 'Пароль',
+                value: password,
+                onChange: (e) => setPassword(e.target.value),
+                style: { marginTop: '10px' }
+              }),
+              h('button', {
+                className: 'glass-button button-success no-shine',
+                onClick: handleSubmitOrder,
+                disabled: loading || !login || !password,
+                style: { marginTop: '20px' }
+              }, 'Оплатить'),
+              h('button', {
+                className: 'glass-button button-secondary no-shine',
+                onClick: () => {
+                  setSelectedProduct(null);
+                  setLogin('');
+                  setPassword('');
+                  goBack();
+                },
+                disabled: loading,
+                style: { marginTop: '10px' }
+              }, 'Назад')
+            ])
+          );
         }
-
-        contentChildren.push(
-          h('div', { className: 'card' }, [
-            h('h3', null, `Товар: ${paymentData.product}`),
-            h('input', {
-              type: 'text',
-              className: 'search-bar',
-              placeholder: 'Логин',
-              value: login,
-              oninput: (e) => setLogin(e.target.value),
-              style: { marginTop: '10px' }
-            }),
-            h('input', {
-              type: 'password',
-              className: 'search-bar',
-              placeholder: 'Пароль',
-              value: password,
-              oninput: (e) => setPassword(e.target.value),
-              style: { marginTop: '10px' }
-            }),
-
-            h('button', {
-              className: 'glass-button button-primary no-shine',
-              onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
-              disabled: loading || !login || !password,
-              style: { marginTop: '20px' }
-            }, 'Оплатить'),
-
-            h('button', {
-              className: 'glass-button button-success no-shine',
-              onClick: confirmProductPayment,
-              disabled: loading,
-              style: { marginTop: '10px' }
-            }, 'Подтвердить'),
-
-            h('button', {
-              className: 'glass-button button-secondary no-shine',
-              onClick: () => {
-                setSelectedProduct(null);
-                setLogin('');
-                setPassword('');
-                setPaymentData(null);
-                localStorage.removeItem("paymentData");
-                navigate("shop");
-              },
-              style: { marginTop: '10px' }
-            }, 'Назад')
-          ])
-        );
 
         return h('div', { className: 'container' }, [
           Header({ title: 'Оформление заказа' }),
@@ -2311,114 +2274,40 @@
         ]);
       };
 
-
-      const handleBuyProduct = async () => {
-        try {
-          setLoading(true);
-
-          const res = await axiosInstance.post(`${API_URL}/api/buy-product`, {
-            tg_id: user.telegram_id,
-            product: selectedProduct.name,
-            login,
-            password,
-            days: selectedProduct.days,
-            amount: selectedProduct.price
-          });
-
-          const payment = {
-            ...res.data,
-            isProduct: true,
-            product: selectedProduct.name,
-            login,
-            password,
-            days: selectedProduct.days,
-            amount: selectedProduct.price
-          };
-
-          setPaymentData(payment);
-          localStorage.setItem("paymentData", JSON.stringify(payment));
-
-        } catch (err) {
-          console.error('Ошибка при создании оплаты:', err);
-          Telegram.WebApp.showAlert("Ошибка при создании оплаты");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-
-
-      const confirmProductPayment = async () => {
-        if (!paymentData?.payment_id) {
-          Telegram.WebApp.showAlert("Нет данных оплаты");
-          return;
-        }
-
+      const handleSubmitOrder = async () => {
         if (!login || !password) {
-          Telegram.WebApp.showAlert("Введите логин и пароль перед подтверждением");
+          Telegram.WebApp.showAlert('Пожалуйста, заполните оба поля: Логин и Пароль');
           return;
         }
 
         setLoading(true);
+        setError(null);
+
         try {
-          const res = await axiosInstance.post(`${API_URL}/api/check-product-payment`, {
-            payment_id: paymentData.payment_id,
-            login: login.trim(),
-            password: password.trim()
+          const response = await axiosInstance.post(`${API_URL}/api/submit-order`, {
+            telegram_id: user.telegram_id,
+            product: selectedProduct.name,
+            login,
+            password,
+            days: selectedProduct.days,
           });
 
-          if (res.data.status === "succeeded") {
-            Telegram.WebApp.showAlert(`Покупка товара "${paymentData.product}" подтверждена!`);
+          if (response.status === 200) {
+            Telegram.WebApp.showAlert('Заказ успешно отправлен!');
             setSelectedProduct(null);
             setLogin('');
             setPassword('');
-            setPaymentData(null);
-            localStorage.removeItem("paymentData");
-            navigate("shop");
+            navigate('main');
           } else {
-            Telegram.WebApp.showAlert("Платёж не найден");
+            setError('Ошибка при отправке заказа');
           }
         } catch (err) {
-          console.error(err);
-          Telegram.WebApp.showAlert("Ошибка при подтверждении оплаты");
+          console.error('Ошибка отправки заказа:', err);
+          setError(`Ошибка отправки заказа: ${err.response?.data?.detail || err.message}`);
         } finally {
           setLoading(false);
         }
       };
-
-
-
-      const handleSubmitOrder = async () => {
-        if (!selectedProduct || !login || !password) {
-          Telegram.WebApp.showAlert('Заполните все поля');
-          return;
-        }
-
-        try {
-          const response = await axiosInstance.post(`${API_URL}/api/buy-product`, {
-            tg_id: user.telegram_id, // <-- исправлено
-            product: selectedProduct.name,
-            login,
-            password,
-            days: selectedProduct.days
-          });
-
-          setPaymentData({
-            ...response.data,
-            isProduct: true,
-            product: selectedProduct.name,
-            login,
-            password,
-            days: selectedProduct.days
-          });
-
-          navigate('product-payment');
-        } catch (err) {
-          console.error(err);
-          Telegram.WebApp.showAlert("Ошибка при создании оплаты товара");
-        }
-      };
-
 
       const views = {
         main: renderMainMenu,
@@ -2440,7 +2329,7 @@
         terms: renderTerms,
         privacy: renderPrivacy,
         shop: renderShop,
-        checkout: renderCheckout,
+        checkout: renderCheckout
       };
 
       const contentChildren = [];
@@ -2460,73 +2349,24 @@
       }
 
     return h('div', null, [
-      contentChildren,
-
-      viewStack.length > 0 && h('button', {
-        className: 'circular-back-button',
-        onClick: goBack
-      }, '<'),
-
-      selectedProduct && view === 'shop' && h('div', {
-        className: 'product-card-overlay',
-        onClick: () => setSelectedProduct(null)
-      }, [
-
-        h('div', {
-          className: 'product-card-content',
-          onClick: (e) => e.stopPropagation()
-        }, [
-          h('img', {
-            src: selectedProduct.image || 'https://picsum.photos/130',
-            alt: selectedProduct.name,
-            className: 'product-image'
-          }),
-          h('div', { className: 'product-details' }, [
-            h('h2', null, selectedProduct.name),
-            h('p', null, selectedProduct.description),
-            h('button', {
-              className: 'glass-button button-primary no-shine',
-              style: { width: '100px' },
-              onClick: async () => {
-                try {
-                  const res = await axiosInstance.post(`${API_URL}/api/buy-product`, {
-                    tg_id: user.telegram_id,
-                    product: selectedProduct.name,
-                    login: '', 
-                    password: '', 
-                    days: selectedProduct.days,
-                    amount: selectedProduct.amount
-                  });
-
-                  const payment = {
-                    ...res.data,
-                    isProduct: true,
-                    product: selectedProduct.name,
-                    login: '',
-                    password: '',
-                    days: selectedProduct.days,
-                    amount: selectedProduct.amount
-                  };
-
-                  setPaymentData(payment);
-                  localStorage.setItem('paymentData', JSON.stringify(payment));
-                  navigate('checkout');
-                } catch (err) {
-                  console.error('Ошибка при создании оплаты:', err);
-                  Telegram.WebApp.showAlert('Ошибка при создании оплаты');
-                }
-              }
-            }, 'Купить')
-          ])
-        ]),
-
-        h('button', {
-          className: 'close-button',
-          onClick: () => setSelectedProduct(null)
-        }, '×')
-      ])
-    ]);
-
+        contentChildren,
+        viewStack.length > 0 && h('button', { className: 'circular-back-button', onClick: goBack }, '<'),
+        selectedProduct && view === 'shop' && h('div', { className: 'product-card-overlay', onClick: () => setSelectedProduct(null) }, [
+          h('div', { className: 'product-card-content', onClick: (e) => e.stopPropagation() }, [
+            h('img', { src: selectedProduct.image || 'https://picsum.photos/130', alt: selectedProduct.name, className: 'product-image' }),
+            h('div', { className: 'product-details' }, [
+              h('h2', null, selectedProduct.name),
+              h('p', null, selectedProduct.description),
+              h('button', { 
+                className: 'glass-button button-primary no-shine', 
+                style: { width: '100px' }, 
+                onClick: () => navigate('checkout')
+              }, 'Купить')
+            ])
+          ]),
+          h('button', { className: 'close-button', onClick: () => setSelectedProduct(null) }, '×')
+        ])
+      ]);
     }
 
     ReactDOM.render(h(App), document.getElementById('root'));
