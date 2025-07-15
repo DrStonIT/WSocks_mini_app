@@ -337,7 +337,7 @@
 
     .telegram-block {
       padding: 20px 16px;
-      display: flex;
+       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
@@ -924,37 +924,6 @@
 <body>
   <div id="root"></div>
   <script type="text/javascript">
-    var gk_isXlsx = false;
-    var gk_xlsxFileLookup = {};
-    var gk_fileData = {};
-    function filledCell(cell) {
-      return cell !== '' && cell != null;
-    }
-    function loadFileData(filename) {
-      if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-        try {
-          var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-          var firstSheetName = workbook.SheetNames[0];
-          var worksheet = workbook.Sheets[firstSheetName];
-          var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-          var filteredData = jsonData.filter(row => row.some(filledCell));
-          var headerRowIndex = filteredData.findIndex((row, index) =>
-            row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-          );
-          if (headerRowIndex === -1 || headerRowIndex > 25) {
-            headerRowIndex = 0;
-          }
-          var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
-          csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-          return csv;
-        } catch (e) {
-          console.error(e);
-          return "";
-        }
-      }
-      return gk_fileData[filename] || "";
-    }
-
     const { useState, useEffect, createElement: h } = React;
 
     function debounce(func, wait) {
@@ -974,8 +943,6 @@
       const [referrals, setReferrals] = useState([]);
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState(null);
-      const [paymentUrl, setPaymentUrl] = useState(null);
-      const [paymentId, setPaymentId] = useState(null);
       const [paymentData, setPaymentData] = useState(() => {
         const saved = localStorage.getItem('paymentData');
         return saved ? JSON.parse(saved) : null;
@@ -987,11 +954,6 @@
       const [selectedReferee, setSelectedReferee] = useState(null);
       const [processingActions, setProcessingActions] = useState({});
       const [isAllSubscriptionsOpen, setIsAllSubscriptionsOpen] = useState(false);
-      const [products] = useState([
-        { name: 'Товар 1', description: 'Описание товара 1' },
-        { name: 'Товар 2', description: 'Описание товара 2' },
-        { name: 'Товар 3', description: 'Описание товара 3' }
-      ]);
       const [searchTerm, setSearchTerm] = useState('');
       const [viewStack, setViewStack] = useState([]);
       const [selectedProduct, setSelectedProduct] = useState(null);
@@ -999,10 +961,7 @@
 
       const API_URL = 'https://unable-karisa-del-app-cebf6c42.koyeb.app';
       const SUPPORT_LINK = 'https://t.me/WSocks_Support';
-      const SUPPORT_HANDLE = '@WSocks_Support';
       const BOT_USERNAME = '@penis2008bot';
-      const APP_DOWNLOAD_LINK = 'https://example.com/download';
-      const TELEGRAM_CHANNEL_LINK = 'https://t.me/WSocks_Channel';
 
       const axiosInstance = axios.create({ timeout: 0 });
 
@@ -1014,7 +973,6 @@
 
       useEffect(() => {
         console.log('Приложение запускается...');
-
         try {
           localStorage.removeItem('paymentData');
           setPaymentData(null);
@@ -1027,18 +985,15 @@
           setLoading(false);
           return;
         }
-      
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         const initData = Telegram.WebApp.initData;
         console.log('InitData:', initData);
-      
         if (!initData) {
           setError('Не удалось получить initData');
           setLoading(false);
           return;
         }
-      
         setLoading(true);
         axiosInstance.post(`${API_URL}/api/auth`, { init_data: initData }, {
           headers: { 'Cache-Control': 'no-cache' }
@@ -1069,26 +1024,19 @@
       };
 
       const goBack = () => {
-        console.log('goBack called, current view:', view, 'viewStack:', viewStack);
         if (viewStack.length === 0) {
-          console.log('Stack empty, setting view to main');
           setView('main');
           return;
         }
-
         setViewStack(prevStack => {
           let newStack = [...prevStack];
           let prevView = newStack[newStack.length - 1];
-
           const paymentPages = ['payment', 'checkout', 'buy', 'extend'];
           while (paymentPages.includes(prevView) && newStack.length > 1) {
-            console.log('Skipping payment page:', prevView);
             newStack = newStack.slice(0, -1);
             prevView = newStack[newStack.length - 1];
           }
-
           const targetView = prevView || 'main';
-          console.log('Navigating to:', targetView, 'new stack:', newStack.slice(0, -1));
           setView(targetView);
           return newStack.slice(0, -1);
         });
@@ -1237,7 +1185,6 @@
         }
 
         setLoading(true);
-
         try {
           if (paymentData?.isProduct) {
             const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
@@ -1301,62 +1248,6 @@
 
       const toggleAllSubscriptionsPanel = () => {
         setIsAllSubscriptionsOpen(!isAllSubscriptionsOpen);
-      };
-
-      const handleBuyProduct = async (product) => {
-        try {
-          setLoading(true);
-          const response = await axiosInstance.post(`${API_URL}/api/buy-product`, {
-            tg_id: user.telegram_id,
-            product: product.name,
-            days: product.days,
-          });
-          setPaymentData(response.data);
-          setSelectedProduct(product);
-          navigate('checkout');
-        } catch (err) {
-          setError('Ошибка создания платежа для продукта');
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const confirmProductPayment = async () => {
-        if (!paymentData?.payment_id) {
-          Telegram.WebApp.showAlert("Нет данных оплаты");
-          return;
-        }
-
-        if (!login || !password) {
-          Telegram.WebApp.showAlert("Введите логин и пароль перед подтверждением");
-          return;
-        }
-
-        setLoading(true);
-        try {
-          const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, {
-            payment_id: paymentData.payment_id,
-            login: login.trim(),
-            password: password.trim()
-          });
-
-          if (res.data.status === "succeeded") {
-            Telegram.WebApp.showAlert(`Покупка товара "${paymentData.product}" подтверждена!`);
-            setSelectedProduct(null);
-            setLogin('');
-            setPassword('');
-            setPaymentData(null);
-            localStorage.removeItem("paymentData");
-            navigate("shop");
-          } else {
-            Telegram.WebApp.showAlert("Платёж не найден");
-          }
-        } catch (err) {
-          console.error(err);
-          Telegram.WebApp.showAlert("Ошибка при подтверждении оплаты");
-        } finally {
-          setLoading(false);
-        }
       };
 
       const Header = ({ title }) => {
@@ -1763,7 +1654,7 @@
           h('div', { className: 'content' }, contentChildren)
         ]);
       };
-      
+
       const confirmPayment = async () => {
         if (!paymentData?.payment_id) {
           Telegram.WebApp.showAlert("Нет данных оплаты");
@@ -2130,21 +2021,21 @@
                 description: 'Подписка на Spotify Premium на 3 месяца. Слушайте миллионы треков без рекламы, скачивайте музыку для оффлайн-воспроизведения и наслаждайтесь персонализированными плейлистами.',
                 days: 90,
                 image: 'images/spotify.jpg',
-                price: 89
+                price: 249
               },
               {
                 name: 'Spotify - 6 месяцев',
                 description: 'Шестимесячная подписка на Spotify Premium. Получите все преимущества Premium, включая неограниченный доступ к подкастам и высококачественное аудио, на длительный срок.',
                 days: 180,
                 image: 'images/spotify.jpg',
-                price: 89
+                price: 449
               },
               {
                 name: 'Spotify - 1 год',
                 description: 'Годовая подписка на Spotify Premium. Экономьте с длительным доступом к музыке без рекламы, оффлайн-режиму и эксклюзивным функциям для меломанов.',
                 days: 360,
                 image: 'images/spotify.jpg',
-                price: 89
+                price: 849
               }
             ]
           },
@@ -2155,7 +2046,7 @@
                 name: 'ChatGPT / Sora - 1 месяц',
                 description: 'Доступ к ChatGPT Plus и Sora на 1 месяц. Используйте продвинутые функции ИИ для генерации текста, кода и мультимедиа с максимальной производительностью.',
                 days: 30,
-                image: 'images/chatgpt.jpg', 
+                image: 'images/chatgpt.jpg',
                 price: 89
               },
               {
@@ -2163,21 +2054,21 @@
                 description: 'Трехмесячная подписка на ChatGPT Plus и Sora. Получите расширенные возможности ИИ, включая создание сложных текстов и мультимедийного контента.',
                 days: 90,
                 image: 'images/chatgpt.jpg',
-                price: 89
+                price: 249
               },
               {
                 name: 'ChatGPT / Sora - 6 месяцев',
                 description: 'Полугодовая подписка на ChatGPT Plus и Sora. Идеально для профессионалов, использующих ИИ для автоматизации задач и создания контента.',
                 days: 180,
                 image: 'images/chatgpt.jpg',
-                price: 89
+                price: 449
               },
               {
                 name: 'ChatGPT / Sora - 1 год',
                 description: 'Годовой доступ к ChatGPT Plus и Sora. Максимальная выгода для долгосрочного использования ИИ в работе, учебе или творчестве.',
                 days: 360,
                 image: 'images/chatgpt.jpg',
-                price: 89
+                price: 849
               }
             ]
           },
@@ -2196,21 +2087,21 @@
                 description: 'Трехмесячная подписка Telegram Premium. Наслаждайтесь расширенными функциями, такими как управление папками и приоритетная поддержка.',
                 days: 90,
                 image: 'images/telegram.png',
-                price: 89
+                price: 249
               },
               {
                 name: 'Telegram - 6 месяцев',
                 description: 'Шестимесячная подписка Telegram Premium. Получите доступ к уникальным функциям и улучшенному интерфейсу для комфортного общения.',
                 days: 180,
                 image: 'images/telegram.png',
-                price: 89
+                price: 449
               },
               {
                 name: 'Telegram - 1 год',
                 description: 'Годовая подписка Telegram Premium. Экономьте с долгосрочным доступом к эксклюзивным функциям и улучшенному опыту использования.',
                 days: 360,
                 image: 'images/telegram.png',
-                price: 89
+                price: 849
               }
             ]
           },
@@ -2236,21 +2127,20 @@
                 description: 'Полугодовая подписка на Grok. Подходит для пользователей, ищущих долгосрочный доступ к ИИ для работы и учебы.',
                 days: 180,
                 image: 'images/grok.jpg',
-                price: 499
+                price: 449
               },
               {
                 name: 'Grok - 1 год',
                 description: 'Годовая подписка на Grok. Максимальная выгода для постоянного использования ИИ от xAI в различных задачах.',
                 days: 360,
                 image: 'images/grok.jpg',
-                price: 899
+                price: 849
               }
             ]
-          },
+          }
         ];
 
         const allProducts = testProducts.flatMap(p => p.products);
-
         const filteredProducts = selectedSection === 'All'
           ? allProducts.filter(product => product.name.toLowerCase().includes(searchTerm.toLowerCase()))
           : testProducts.find(p => p.name === selectedSection)?.products.filter(product => product.name.toLowerCase().includes(searchTerm.toLowerCase())) || [];
@@ -2283,7 +2173,7 @@
                 h('div', null, [
                   h('h3', null, product.name),
                   h('p', null, product.description),
-                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product) }, 'Купить')
+                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product)}, 'Купить')
                 ])
               ])
             ))),
@@ -2305,8 +2195,10 @@
 
         contentChildren.push(
           h('div', { className: 'card' }, [
-            h('h3', null, `Товар: ${paymentData.product}`),
-            h('input', {
+            h('h3', null, paymentData.isProduct ? `Товар: ${paymentData.product}` : `Подписка на ${paymentData.days} дней`),
+            !paymentData.isProduct && h('p', null, [h('b', null, 'Пользователь: '), paymentData.email || "Новый пользователь"]),
+            !paymentData.isProduct && h('p', null, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
+            paymentData.isProduct && h('input', {
               type: 'text',
               className: 'search-bar',
               placeholder: 'Логин',
@@ -2314,7 +2206,7 @@
               onChange: (e) => setLogin(e.target.value),
               style: { marginTop: '10px' }
             }),
-            h('input', {
+            paymentData.isProduct && h('input', {
               type: 'password',
               className: 'search-bar',
               placeholder: 'Пароль',
@@ -2322,12 +2214,12 @@
               onChange: (e) => setPassword(e.target.value),
               style: { marginTop: '10px' }
             }),
-            h('button', {
+            paymentData.payment_url ? h('button', {
               className: 'glass-button button-primary no-shine',
               onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
-              disabled: loading || !login || !password,
+              disabled: loading,
               style: { marginTop: '20px' }
-            }, 'Оплатить'),
+            }, 'Оплатить') : h('p', { className: 'error' }, 'Ссылка на оплату не доступна'),
             h('button', {
               className: 'glass-button button-success no-shine',
               onClick: confirmProductPayment,
@@ -2353,6 +2245,74 @@
           Header({ title: 'Оформление заказа' }),
           h('div', { className: 'content' }, contentChildren)
         ]);
+      };
+
+      const handleBuyProduct = async () => {
+        if (!user || !selectedProduct) {
+          Telegram.WebApp.showAlert("Ошибка: пользователь или товар не выбран");
+          return;
+        }
+
+        setLoading(true);
+        try {
+          const res = await axiosInstance.post(`${API_URL}/api/buy-product`, {
+            tg_id: user.telegram_id,
+            product: selectedProduct.name,
+            login: '', // Логин и пароль передаются при подтверждении
+            password: '',
+            days: selectedProduct.days,
+            amount: selectedProduct.price
+          });
+          console.log('Ответ сервера:', res.data);
+          const payment = {
+            ...res.data,
+            isProduct: true,
+            product: selectedProduct.name,
+            days: selectedProduct.days,
+            amount: selectedProduct.price
+          };
+          setPaymentData(payment);
+          localStorage.setItem("paymentData", JSON.stringify(payment));
+          navigate('checkout');
+        } catch (err) {
+          console.error('Ошибка при создании оплаты:', err);
+          Telegram.WebApp.showAlert("Ошибка при создании оплаты");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const confirmProductPayment = async () => {
+        if (!paymentData?.payment_id) {
+          Telegram.WebApp.showAlert("Нет данных оплаты");
+          return;
+        }
+
+        setLoading(true);
+        try {
+          const payload = paymentData.isProduct 
+            ? { payment_id: paymentData.payment_id, login: login.trim(), password: password.trim() }
+            : { payment_id: paymentData.payment_id };
+          const res = await axiosInstance.post(`${API_URL}/api/check-payment-status`, payload);
+
+          if (res.data.status === "succeeded") {
+            Telegram.WebApp.showAlert(paymentData.isProduct 
+              ? `Покупка товара "${paymentData.product}" успешно подтверждена!` 
+              : `Подписка успешно активирована до ${res.data.expiry_date}!`);
+            setPaymentData(null);
+            setLogin('');
+            setPassword('');
+            localStorage.removeItem("paymentData");
+            navigate(paymentData.isProduct ? "shop" : "subscriptions");
+          } else {
+            Telegram.WebApp.showAlert("Платёж не найден");
+          }
+        } catch (err) {
+          console.error('Ошибка при подтверждении оплаты:', err);
+          Telegram.WebApp.showAlert("Ошибка при подтверждении оплаты");
+        } finally {
+          setLoading(false);
+        }
       };
 
       const views = {
@@ -2419,7 +2379,7 @@
               h('button', {
                 className: 'glass-button button-primary no-shine',
                 style: { width: '100px' },
-                onClick: () => handleBuyProduct(selectedProduct)
+                onClick: handleBuyProduct
               }, 'Купить')
             ])
           ]),
