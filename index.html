@@ -2174,21 +2174,21 @@
             description: 'Трехмесячная подписка на Grok. Используйте ИИ для исследований, обучения и автоматизации с расширенными возможностями.',
             days: 90,
             image: 'images/grok.jpg',
-            price: 89
+            price: 249
           },
           {
             name: 'Grok - 6 месяцев',
             description: 'Полугодовая подписка на Grok. Подходит для пользователей, ищущих долгосрочный доступ к ИИ для работы и учебы.',
             days: 180,
             image: 'images/grok.jpg',
-            price: 89
+            price: 499
           },
           {
             name: 'Grok - 1 год',
             description: 'Годовая подписка на Grok. Максимальная выгода для постоянного использования ИИ от xAI в различных задачах.',
             days: 360,
             image: 'images/grok.jpg',
-            price: 89
+            price: 899
           }
         ]
       },
@@ -2322,7 +2322,8 @@
             product: selectedProduct.name,
             login,
             password,
-            days: selectedProduct.days
+            days: selectedProduct.days,
+            amount: selectedProduct.price
           });
 
           const payment = {
@@ -2331,7 +2332,8 @@
             product: selectedProduct.name,
             login,
             password,
-            days: selectedProduct.days
+            days: selectedProduct.days,
+            amount: selectedProduct.price
           };
 
           setPaymentData(payment);
