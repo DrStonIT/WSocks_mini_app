@@ -2274,6 +2274,13 @@
                 style: { marginTop: '20px' }
               }, 'Оплатить'),
               h('button', {
+                className: 'glass-button button-primary no-shine',
+                onClick: confirmProductPayment,
+                disabled: loading,
+                style: { marginTop: '10px' }
+              }, 'Подтвердить'),
+
+              h('button', {
                 className: 'glass-button button-secondary no-shine',
                 onClick: () => {
                   setSelectedProduct(null);
@@ -2293,6 +2300,38 @@
           h('div', { className: 'content' }, contentChildren)
         ]);
       };
+
+      const confirmProductPayment = async () => {
+        if (!paymentData?.payment_id) {
+          Telegram.WebApp.showAlert("Нет данных об оплате");
+          return;
+        }
+
+        setLoading(true);
+        try {
+          const res = await axiosInstance.post(`${API_URL}/api/check-product-payment`, {
+            payment_id: paymentData.payment_id
+          });
+
+          if (res.data.status === "succeeded") {
+            Telegram.WebApp.showAlert(`Покупка товара "${paymentData.product}" подтверждена!`);
+            setSelectedProduct(null);
+            setLogin('');
+            setPassword('');
+            setPaymentData(null);
+            localStorage.removeItem("paymentData");
+            navigate("shop");
+          } else {
+            Telegram.WebApp.showAlert("Платёж не найден");
+          }
+        } catch (err) {
+          Telegram.WebApp.showAlert("Ошибка при подтверждении оплаты");
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
 
       const handleSubmitOrder = async () => {
         if (!selectedProduct || !login || !password) {
