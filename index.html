@@ -2302,25 +2302,26 @@
 
         try {
           const response = await axiosInstance.post(`${API_URL}/api/buy-product`, {
-            tg_id: user.id,
-            product: selectedProduct,
+            tg_id: user.telegram_id, // <-- исправлено
+            product: selectedProduct.name,
             login,
             password,
-            days: 30  // Или значение из интерфейса
+            days: selectedProduct.days
           });
 
           setPaymentData({
             ...response.data,
             isProduct: true,
-            product: selectedProduct,
+            product: selectedProduct.name,
             login,
-            password
+            password,
+            days: selectedProduct.days
           });
 
-          navigate('payment');
+          navigate('product-payment');
         } catch (err) {
-          Telegram.WebApp.showAlert("Ошибка при создании оплаты товара");
           console.error(err);
+          Telegram.WebApp.showAlert("Ошибка при создании оплаты товара");
         }
       };
 
@@ -2345,7 +2346,8 @@
         terms: renderTerms,
         privacy: renderPrivacy,
         shop: renderShop,
-        checkout: renderCheckout
+        checkout: renderCheckout,
+        productpayment: renderProductPayment
       };
 
       const contentChildren = [];
