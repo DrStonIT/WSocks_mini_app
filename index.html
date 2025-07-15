@@ -2492,8 +2492,8 @@
                   const res = await axiosInstance.post(`${API_URL}/api/buy-product`, {
                     tg_id: user.telegram_id,
                     product: selectedProduct.name,
-                    login: '', // ещё не введено
-                    password: '', // ещё не введено
+                    login: '', 
+                    password: '', 
                     days: selectedProduct.days,
                     amount: selectedProduct.amount
                   });
@@ -2504,7 +2504,8 @@
                     product: selectedProduct.name,
                     login: '',
                     password: '',
-                    days: selectedProduct.days
+                    days: selectedProduct.days,
+                    amount: selectedProduct.amount
                   };
 
                   setPaymentData(payment);
