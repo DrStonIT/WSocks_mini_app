@@ -2240,10 +2240,15 @@
       const renderCheckout = () => {
         const contentChildren = [];
 
+        // 🔄 Автоматическое создание оплаты (один раз)
+        if (selectedProduct && !paymentData && !loading && login && password) {
+          handleBuyProduct();
+        }
+
         if (error) {
           contentChildren.push(
             h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(handleSubmitOrder) }, 'Повторить'),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(handleBuyProduct) }, 'Повторить'),
             h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
           );
         } else if (selectedProduct) {
@@ -2267,25 +2272,32 @@
                 onChange: (e) => setPassword(e.target.value),
                 style: { marginTop: '10px' }
               }),
-              h('button', {
-                className: 'glass-button button-success no-shine',
-                onClick: handleSubmitOrder,
-                disabled: loading || !login || !password,
+
+              
+              paymentData && h('button', {
+                className: 'glass-button button-primary no-shine',
+                onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
+                disabled: loading,
                 style: { marginTop: '20px' }
               }, 'Оплатить'),
-              h('button', {
-                className: 'glass-button button-primary no-shine',
+
+              // ✅ Кнопка "Подтвердить"
+              paymentData && h('button', {
+                className: 'glass-button button-success no-shine',
                 onClick: confirmProductPayment,
                 disabled: loading,
                 style: { marginTop: '10px' }
               }, 'Подтвердить'),
 
+              // ❌ Кнопка "Назад" (сброс)
               h('button', {
                 className: 'glass-button button-secondary no-shine',
                 onClick: () => {
                   setSelectedProduct(null);
                   setLogin('');
                   setPassword('');
+                  setPaymentData(null);
+                  localStorage.removeItem("paymentData");
                   goBack();
                 },
                 disabled: loading,
@@ -2300,6 +2312,40 @@
           h('div', { className: 'content' }, contentChildren)
         ]);
       };
+
+      const handleBuyProduct = async () => {
+        try {
+          setLoading(true);
+
+          const res = await axiosInstance.post(`${API_URL}/api/buy-product`, {
+            tg_id: user.telegram_id,
+            product: selectedProduct.name,
+            login,
+            password,
+            days: selectedProduct.days
+          });
+
+          const payment = {
+            ...res.data,
+            isProduct: true,
+            product: selectedProduct.name,
+            login,
+            password,
+            days: selectedProduct.days
+          };
+
+          setPaymentData(payment);
+          localStorage.setItem("paymentData", JSON.stringify(payment));
+
+        } catch (err) {
+          console.error('Ошибка при создании оплаты:', err);
+          Telegram.WebApp.showAlert("Ошибка при создании оплаты");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+
 
       const confirmProductPayment = async () => {
         if (!paymentData?.payment_id) {
@@ -2331,6 +2377,7 @@
           setLoading(false);
         }
       };
+
 
 
       const handleSubmitOrder = async () => {
