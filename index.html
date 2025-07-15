@@ -1767,7 +1767,7 @@
         } else if (paymentData) {
           contentChildren.push(
             h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
-            h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), 'Новый пользователь']),
+            h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), paymentData.email ? paymentData.email : "Новый пользователь"]),
             h('p', { className: 'card' }, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
             h('button', {
               className: 'glass-button button-primary no-shine',
