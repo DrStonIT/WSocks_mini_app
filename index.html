@@ -1057,6 +1057,7 @@
 
       const navigate = (newView) => {
         setViewStack(prev => {
+          // Only add to viewStack if navigating to a non-payment view and it's different from the current view
           if (newView !== view && !['payment', 'checkout'].includes(newView)) {
             return [...prev, view];
           }
@@ -1070,8 +1071,11 @@
         if (viewStack.length === 0) {
           console.log('Stack empty, setting view to main');
           setView('main');
-          setPaymentData(null); // Clear paymentData when going back to main
+          setPaymentData(null); // Clear paymentData only when returning to main
           localStorage.removeItem('paymentData');
+          setLogin('');
+          setPassword('');
+          setSelectedProduct(null);
           return;
         }
 
@@ -1090,11 +1094,14 @@
           const targetView = prevView || 'main';
           console.log('Navigating to:', targetView, 'new stack:', newStack.slice(0, -1));
           setView(targetView);
-          
-          // Clear paymentData when exiting payment flow
-          if (['payment', 'checkout'].includes(view)) {
+
+          // Clear payment-related state only when exiting the payment flow entirely
+          if (['payment', 'checkout'].includes(view) && !['payment', 'checkout'].includes(targetView)) {
             setPaymentData(null);
             localStorage.removeItem('paymentData');
+            setLogin('');
+            setPassword('');
+            setSelectedProduct(null);
           }
 
           return newStack.slice(0, -1);
@@ -1731,23 +1738,29 @@
       };
 
       const confirmProductPayment = async () => {
-        if (!paymentData?.payment_id) {
-          Telegram.WebApp.showAlert("Нет данных оплаты");
+        if (!paymentData || !paymentData.payment_id || !paymentData.type || paymentData.type !== 'product') {
+          Telegram.WebApp.showAlert("Данные оплаты отсутствуют или недействительны");
+          setError("Ошибка: Данные оплаты отсутствуют или недействительны");
+          setView('shop'); // Navigate back to shop if paymentData is invalid
           return;
         }
 
         setLoading(true);
-        setError(null); // Clear previous errors
+        setError(null);
         try {
           const response = await axiosInstance.post(`${API_URL}/api/check-product-payment`, {
             payment_id: paymentData.payment_id
           });
 
           if (response.data.status === 'succeeded') {
+            const productName = paymentData.productName || 'Неизвестный товар';
             setPaymentData(null);
             localStorage.removeItem('paymentData');
+            setLogin('');
+            setPassword('');
+            setSelectedProduct(null);
             navigate('shop');
-            Telegram.WebApp.showAlert(`Товар "${paymentData.productName}" успешно оплачен!`);
+            Telegram.WebApp.showAlert(`Товар "${productName}" успешно оплачен!`);
           } else {
             Telegram.WebApp.showAlert("Платёж ещё не подтверждён. Попробуйте снова.");
           }
@@ -1763,21 +1776,78 @@
 
       const cancelPayment = async () => {
         setLoading(true);
-        setError(null); // Clear previous errors
+        setError(null);
         try {
           if (paymentData?.payment_id) {
             await axiosInstance.post(`${API_URL}/api/cancel-payment`, {
               payment_id: paymentData.payment_id
             });
+            Telegram.WebApp.showAlert("Оплата успешно отменена");
+          } else {
+            Telegram.WebApp.showAlert("Нет активной оплаты для отмены");
           }
+        } catch (err) {
+          console.warn('Ошибка отмены оплаты:', err);
+          const errorMessage = err.response?.data?.description || err.message || 'Неизвестная ошибка';
+          // Suppress error if payment doesn't exist (already processed or invalid)
+          if (err.response?.data?.code !== 'invalid_request') {
+            setError(`Ошибка отмены оплаты: ${errorMessage}`);
+            Telegram.WebApp.showAlert(`Ошибка отмены оплаты: ${errorMessage}`);
+          }
+        } finally {
           setPaymentData(null);
           localStorage.removeItem('paymentData');
-          navigate(viewStack.includes('checkout') ? 'shop' : 'main'); // Navigate to shop if coming from checkout
+          setLogin('');
+          setPassword('');
+          setSelectedProduct(null);
+          navigate(viewStack.includes('checkout') ? 'shop' : 'main');
+          setLoading(false);
+        }
+      };
+
+      const handleSubmitOrder = async () => {
+        if (!login || !password) {
+          Telegram.WebApp.showAlert('Пожалуйста, заполните оба поля: Логин и Пароль');
+          return;
+        }
+
+        if (!selectedProduct) {
+          Telegram.WebApp.showAlert('Товар не выбран');
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+          const response = await axiosInstance.post(`${API_URL}/api/buy-product`, {
+            tg_id: user.telegram_id,
+            product: selectedProduct.name,
+            login,
+            password,
+            days: selectedProduct.days,
+            amount: selectedProduct.price,
+          });
+
+          const { payment_url, payment_id } = response.data;
+          setPaymentData({
+            type: 'product',
+            payment_id,
+            payment_url,
+            productName: selectedProduct.name,
+          });
+          localStorage.setItem('paymentData', JSON.stringify({
+            type: 'product',
+            payment_id,
+            payment_url,
+            productName: selectedProduct.name,
+          }));
+          navigate('payment');
         } catch (err) {
-          console.error('Ошибка отмены оплаты:', err);
+          console.error('Ошибка при создании оплаты:', err);
           const errorMessage = err.response?.data?.detail || err.message || 'Неизвестная ошибка';
-          setError(`Ошибка отмены оплаты: ${errorMessage}`);
-          Telegram.WebApp.showAlert(`Ошибка отмены оплаты: ${errorMessage}`);
+          setError(`Ошибка: ${errorMessage}`);
+          Telegram.WebApp.showAlert(`Ошибка при создании оплаты: ${errorMessage}`);
         } finally {
           setLoading(false);
         }
@@ -2341,40 +2411,7 @@
         ]);
       };
 
-      const handleSubmitOrder = async () => {
-        if (!login || !password) {
-          Telegram.WebApp.showAlert('Пожалуйста, заполните оба поля: Логин и Пароль');
-          return;
-        }
 
-        setLoading(true);
-        setError(null);
-
-        try {
-          const response = await axiosInstance.post(`${API_URL}/api/buy-product`, {
-            tg_id: user.telegram_id,
-            product: selectedProduct.name,
-            login,
-            password,
-            days: selectedProduct.days,
-            amount: selectedProduct.price,
-          });
-
-          const { payment_url, payment_id } = response.data;
-          setPaymentData({
-            type: 'product',
-            payment_id,
-            payment_url,
-            productName: selectedProduct.name,
-          });
-          navigate('payment');
-        } catch (err) {
-          console.error('Ошибка при создании оплаты:', err);
-          setError(`Ошибка: ${err.response?.data?.detail || err.message}`);
-        } finally {
-          setLoading(false);
-        }
-      };
 
       const views = {
         main: renderMainMenu,
