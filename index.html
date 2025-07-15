@@ -1149,7 +1149,7 @@
             : { tg_id: user.telegram_id, days };
           const response = await axiosInstance.post(`${API_URL}${endpoint}`, payload);
           console.log('Ответ подписки:', response.data);
-          setPaymentData({ ...response.data, isExtension });
+          setPaymentData({ ...response.data, isExtension, days, email });
           navigate('payment');
         } catch (err) {
           console.error('Ошибка активации подписки:', err);
