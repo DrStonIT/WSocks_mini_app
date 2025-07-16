@@ -1762,7 +1762,6 @@
       };
 
 
-
       const renderPayment = () => {
         const contentChildren = [];
 
@@ -1816,40 +1815,9 @@
             );
           }
         }
-        
-        if (error) {
-          contentChildren.push(
-            h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(confirmActivation) }, 'Повторить'),
-            h('button', { className: 'glass-button button-secondary no-shine', onClick: () => { setPaymentData(null); localStorage.removeItem('paymentData'); goBack(); } }, 'Назад')
-          );
-        } else if (paymentData) {
-          contentChildren.push(
-            h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
-            h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), 'Новый пользователь']),
-            h('p', { className: 'card' }, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
-            h('button', {
-              className: 'glass-button button-primary no-shine',
-              onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
-              disabled: loading
-            }, 'Оплатить'),
-
-            h('button', {
-              className: 'glass-button button-success no-shine',
-              onClick: confirmPayment,
-              disabled: loading
-            }, 'Подтвердить'),
-
-            h('button', {
-              className: 'glass-button button-danger no-shine',
-              onClick: cancelPayment,
-              disabled: loading
-            }, 'Отмена')
-          );
-        }
 
         return h('div', { className: 'container' }, [
-          Header({ title: 'Подтверждение подписки' }),
+          Header({ title: paymentData.type === 'product' ? 'Оплата товара' : 'Подтверждение подписки' }),
           h('div', { className: 'content' }, contentChildren)
         ]);
       };
