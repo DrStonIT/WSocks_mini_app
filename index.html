@@ -1074,7 +1074,7 @@
           let newStack = [...prevStack];
           let prevView = newStack[newStack.length - 1];
 
-          const paymentPages = ['payment', 'checkout', 'buy', 'extend'];
+          const paymentPages = ['productPayment','payment', 'checkout', 'buy', 'extend'];
           while (paymentPages.includes(prevView) && newStack.length > 1) {
             console.log('Skipping payment page:', prevView);
             newStack = newStack.slice(0, -1);
