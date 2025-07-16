@@ -1761,6 +1761,42 @@
         }
       };
 
+      const renderProductPayment = () => {
+        const contentChildren = [];
+
+        if (error) {
+          contentChildren.push(
+            h('p', { className: 'error' }, error),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(confirmProductPayment) }, 'Повторить'),
+            h('button', { className: 'glass-button button-secondary no-shine', onClick: () => { setPaymentData(null); localStorage.removeItem('paymentData'); goBack(); } }, 'Назад')
+          );
+        } else if (paymentData && paymentData.type === 'product') {
+          contentChildren.push(
+            h('p', { className: 'card' }, `Покупка товара: ${paymentData.productName}`),
+            h('p', { className: 'card' }, [h('b', null, 'Сумма: '), `${selectedProduct.price} ₽`]),
+            h('button', {
+              className: 'glass-button button-primary no-shine',
+              onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
+              disabled: loading
+            }, 'Ссылка на оплату'),
+            h('button', {
+              className: 'glass-button button-success no-shine',
+              onClick: confirmProductPayment,
+              disabled: loading
+            }, 'Подтвердить'),
+            h('button', {
+              className: 'glass-button button-danger no-shine',
+              onClick: cancelPayment,
+              disabled: loading
+            }, 'Отменить')
+          );
+        }
+
+        return h('div', { className: 'container' }, [
+          Header({ title: 'Оплата товара' }),
+          h('div', { className: 'content' }, contentChildren)
+        ]);
+      };
 
       const renderPayment = () => {
         const contentChildren = [];
@@ -1768,56 +1804,36 @@
         if (error) {
           contentChildren.push(
             h('p', { className: 'error' }, error),
-            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(paymentData.type === 'product' ? confirmProductPayment : confirmActivation) }, 'Повторить'),
+            h('button', { className: 'glass-button button-primary no-shine', onClick: () => handleRetry(confirmActivation) }, 'Повторить'),
             h('button', { className: 'glass-button button-secondary no-shine', onClick: () => { setPaymentData(null); localStorage.removeItem('paymentData'); goBack(); } }, 'Назад')
           );
         } else if (paymentData) {
-          if (paymentData.type === 'product') {
-            contentChildren.push(
-              h('p', { className: 'card' }, `Покупка товара: ${paymentData.productName}`),
-              h('p', { className: 'card' }, [h('b', null, 'Сумма: '), `${selectedProduct.price} ₽`]),
-              h('button', {
-                className: 'glass-button button-primary no-shine',
-                onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
-                disabled: loading
-              }, 'Ссылка на оплату'),
-              h('button', {
-                className: 'glass-button button-success no-shine',
-                onClick: confirmProductPayment,
-                disabled: loading
-              }, 'Подтвердить'),
-              h('button', {
-                className: 'glass-button button-danger no-shine',
-                onClick: cancelPayment,
-                disabled: loading
-              }, 'Отменить')
-            );
-          } else {
-            contentChildren.push(
-              h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
-              h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), 'Новый пользователь']),
-              h('p', { className: 'card' }, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
-              h('button', {
-                className: 'glass-button button-primary no-shine',
-                onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
-                disabled: loading
-              }, 'Оплатить'),
-              h('button', {
-                className: 'glass-button button-success no-shine',
-                onClick: confirmPayment,
-                disabled: loading
-              }, 'Подтвердить'),
-              h('button', {
-                className: 'glass-button button-danger no-shine',
-                onClick: cancelPayment,
-                disabled: loading
-              }, 'Отмена')
-            );
-          }
+          contentChildren.push(
+            h('p', { className: 'card' }, `Подписка на ${paymentData.days} дней`),
+            h('p', { className: 'card' }, [h('b', null, 'Пользователь: '), 'Новый пользователь']),
+            h('p', { className: 'card' }, [h('b', null, 'Дата окончания: '), new Date(paymentData.expiry_date).toLocaleString()]),
+            h('button', {
+              className: 'glass-button button-primary no-shine',
+              onClick: () => Telegram.WebApp.openLink(paymentData.payment_url),
+              disabled: loading
+            }, 'Оплатить'),
+
+            h('button', {
+              className: 'glass-button button-success no-shine',
+              onClick: confirmPayment,
+              disabled: loading
+            }, 'Подтвердить'),
+
+            h('button', {
+              className: 'glass-button button-danger no-shine',
+              onClick: cancelPayment,
+              disabled: loading
+            }, 'Отмена')
+          );
         }
 
         return h('div', { className: 'container' }, [
-          Header({ title: paymentData.type === 'product' ? 'Оплата товара' : 'Подтверждение подписки' }),
+          Header({ title: 'Подтверждение подписки' }),
           h('div', { className: 'content' }, contentChildren)
         ]);
       };
@@ -2346,7 +2362,7 @@
             payment_url,
             productName: selectedProduct.name,
           });
-          navigate('payment');
+          navigate('productPayment');
         } catch (err) {
           console.error('Ошибка при создании оплаты:', err);
           setError(`Ошибка: ${err.response?.data?.detail || err.message}`);
@@ -2364,6 +2380,7 @@
         extend: renderExtend,
         selectsubscription: renderSelectSubscription,
         payment: renderPayment,
+        productPayment: renderProductPayment,
         setup: renderSetup,
         manualPC: renderManualPC,
         manualAndroid: renderManualAndroid,
