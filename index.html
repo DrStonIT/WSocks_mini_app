@@ -2234,6 +2234,18 @@
           }
         ]
       },
+      {
+        name: 'Разное',
+        products: [
+          {
+            name: 'Разное',
+            description: 'Уникальные услуги, доступные через поддержку. Свяжитесь с нами для получения подробностей.',
+            days: 30,
+            image: 'images/misc.jpg',
+            price: 0
+          }
+        ]
+      }
     ];
 
         const allProducts = testProducts.flatMap(p => p.products);
@@ -2270,7 +2282,9 @@
                 h('div', null, [
                   h('h3', null, product.name),
                   h('p', null, product.description),
-                  h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product)}, 'Купить')
+                  product.price > 0 ?
+                    h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product) }, 'Купить') :
+                    h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => Telegram.WebApp.openLink(SUPPORT_LINK) }, 'Поддержка')
                 ])
               ])
             ))),
