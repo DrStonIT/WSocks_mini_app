@@ -2253,21 +2253,21 @@
           },
           {
             name: 'ChatGPT / Sora - 3 месяца',
-            description: 'Т- Вы получаете подписку на ВАШ собственный аккаунт \n\n- Для получения, при оплате вам нужно указать ваш Логин и Пароль (Обязательно проверяйте корректность данных)',
+            description: '- Вы получаете подписку на ВАШ собственный аккаунт \n\n- Для получения, при оплате вам нужно указать ваш Логин и Пароль (Обязательно проверяйте корректность данных)',
             days: 90,
             image: 'images/chatgpt.jpg',
             price: 89
           },
           {
             name: 'ChatGPT / Sora - 6 месяцев',
-            description: 'П- Вы получаете подписку на ВАШ собственный аккаунт \n\n- Для получения, при оплате вам нужно указать ваш Логин и Пароль (Обязательно проверяйте корректность данных)',
+            description: '- Вы получаете подписку на ВАШ собственный аккаунт \n\n- Для получения, при оплате вам нужно указать ваш Логин и Пароль (Обязательно проверяйте корректность данных)',
             days: 180,
             image: 'images/chatgpt.jpg',
             price: 89
           },
           {
             name: 'ChatGPT / Sora - 1 год',
-            description: 'Г- Вы получаете подписку на ВАШ собственный аккаунт \n\n- Для получения, при оплате вам нужно указать ваш Логин и Пароль (Обязательно проверяйте корректность данных)',
+            description: '- Вы получаете подписку на ВАШ собственный аккаунт \n\n- Для получения, при оплате вам нужно указать ваш Логин и Пароль (Обязательно проверяйте корректность данных)',
             days: 360,
             image: 'images/chatgpt.jpg',
             price: 89
@@ -2411,6 +2411,9 @@
             h('button', { className: 'glass-button button-secondary no-shine', onClick: goBack }, 'Назад')
           );
         } else if (selectedProduct) {
+
+          const isTelegramProduct = selectedProduct && selectedProduct.name.startsWith('Telegram');
+
           contentChildren.push(
             h('div', { className: 'card' }, [
               h('h3', null, `Оформление заказа: ${selectedProduct.name}`),
@@ -2429,13 +2432,12 @@
                 placeholder: 'Пароль',
                 value: password,
                 onChange: (e) => setPassword(e.target.value),
-                style: { marginTop: '10px' },
-                disabled: selectedProduct.name.startsWith('Telegram')
+                style: { marginTop: '10px' }
               }),
               h('button', {
                 className: 'glass-button button-success no-shine',
                 onClick: handleSubmitOrder,
-                disabled: loading || !login || !password,
+                disabled: loading || !login || (!isTelegramProduct && !password ),
                 style: { marginTop: '20px' }
               }, 'Оплатить'),
               h('button', {
