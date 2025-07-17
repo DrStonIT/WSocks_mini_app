@@ -1300,6 +1300,7 @@
                       const isExpired = sub.is_expired;
                       const daysRemaining = Math.max(0, Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)));
                       const daysDisplay = Math.ceil((new Date(sub.expiry_date) - new Date()) / (1000 * 60 * 60 * 24)) < -8 ? '∞' : `${daysRemaining} дней`;
+                      const isTrial = sub.email.startsWith('DE-FRA-TRIAL-');
                       return h('div', { key: `vpn-${index}`, className: 'subscription' }, [
                         h('h3', null, [
                           h('i', { className: 'fas fa-key', style: { marginRight: '4px' } }),
@@ -1324,7 +1325,11 @@
                           'Макс. устройств: ',
                           sub.email.startsWith('DE-FRA-TRIAL-') ? '3' : '5'
                         ]),
-                        h('button', { className: 'extend-button no-shine', onClick: () => { setSelectedSub(sub); navigate('extend'); }, disabled: loading }, [
+                        !isTrial && h('button', { 
+                          className: 'extend-button no-shine', 
+                          onClick: () => { setSelectedSub(sub); navigate('extend'); }, 
+                          disabled: loading 
+                        }, [
                           h('i', { className: 'fas fa-sync-alt', style: { marginRight: '4px' } }),
                           'Продлить'
                         ]),
@@ -2098,7 +2103,8 @@
           { name: 'Spotify', icon: 'fab fa-spotify' },
           { name: 'ChatGPT / Sora', icon: 'fas fa-robot' },
           { name: 'Telegram', icon: 'fab fa-telegram' },
-          { name: 'Grok', icon: 'fas fa-brain' }
+          { name: 'Grok', icon: 'fas fa-brain' },
+          { name: 'Разное', icon: 'fas fa-ellipsis-h' }
         ];
 
        const testProducts = [
