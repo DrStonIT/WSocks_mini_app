@@ -2462,8 +2462,12 @@
       };
 
       const handleSubmitOrder = async () => {
-        if (!login || !password) {
-          Telegram.WebApp.showAlert('Пожалуйста, заполните оба поля: Логин и Пароль');
+        if (!login) {
+          Telegram.WebApp.showAlert('Пожалуйста, заполните поле Логин');
+          return;
+        }
+        if (!selectedProduct.name.startsWith('Telegram') && !password) {
+          Telegram.WebApp.showAlert('Пожалуйста, заполните поле Пароль');
           return;
         }
 
