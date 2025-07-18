@@ -2413,12 +2413,12 @@
                 h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center' } }, [
                   h('img', { src: product.image, alt: product.name, className: 'product-image' }),
                   product.price > 0 && h('p', { 
-                    style: { fontSize: '20px', fontWeight: 'bold', margin: '8px 0 8px -10px', textAlign: 'center' } 
+                    style: { fontSize: '16px', fontWeight: 'bold', margin: '8px 0 8px -10px', textAlign: 'center' } 
                   }, `${product.price} ₽`)
                 ]),
                 h('div', null, [
                   h('h3', null, product.name),
-                  h('p', { style: { whiteSpace: 'pre-line' } }, product.strickDescription),
+                  h('p', { style: { whiteSpace: 'pre-line',  fontSize: '18px' } }, product.strickDescription),
                   product.price > 0 ?
                     h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product) }, 'Купить') :
                     h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => Telegram.WebApp.openLink(SUPPORT_LINK) }, 'Поддержка')
