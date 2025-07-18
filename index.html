@@ -2420,7 +2420,7 @@
                   h('h3', null, product.name),
                   //h('p', { style: { whiteSpace: 'pre-line',  fontSize: '17px' } }, product.strickDescription),
                   product.price > 0 ?
-                    h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product) }, 'Купить') :
+                    h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product) }, 'Подробнее') :
                     h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => Telegram.WebApp.openLink(SUPPORT_LINK) }, 'Поддержка')
                 ])
               ])
