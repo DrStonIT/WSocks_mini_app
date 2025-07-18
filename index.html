@@ -2390,7 +2390,7 @@
                 ]),
                 h('div', null, [
                   h('h3', null, product.name),
-                  h('p', { style: { whiteSpace: 'pre-line' } }, product.description),
+                  h('p', { style: { whiteSpace: 'pre-line' } }, product.strickDescription),
                   product.price > 0 ?
                     h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => setSelectedProduct(product) }, 'Купить') :
                     h('button', { className: 'glass-button button-primary no-shine', style: { width: '100px' }, onClick: () => Telegram.WebApp.openLink(SUPPORT_LINK) }, 'Поддержка')
@@ -2548,7 +2548,7 @@
         h('div', { className: 'product-card-content', onClick: (e) => e.stopPropagation() }, [
           h('div', { className: 'product-details', style: { textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' } }, [
             h('h2', null, selectedProduct.name),
-            h('p', { style: { whiteSpace: 'pre-line' } }, selectedProduct.strickDescription),
+            h('p', { style: { whiteSpace: 'pre-line' } }, selectedProduct.Description),
             h('button', { 
               className: 'glass-button button-primary no-shine', 
               style: { width: '100px', margin: 'auto' }, 
