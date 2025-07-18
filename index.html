@@ -2119,7 +2119,7 @@
           {
             name: 'Spotify Premium - 1 месяц',
             description: '- Вы получаете подписку на ВАШ собственный аккаунт Spotify\n\n- Для получения, при оплате вам нужно вписать ваш Логин и Пароль (Обязательно проверьте корректность данных)\n\n- На вашем аккаунте будет установлен регион Нигерия, его нельзя менять (Если вы его поменяйте, то мы не даём гарантий)',
-            strickDescription: '- Вы получаете подписку на ВАШ собственный аккаунт Spotify\n\n- Для получения, при оплате вам нужно вписать ваш Логин и Пароль...',
+            strickDescription: '- Вы получаете подписку на ВАШ собственный аккаунт Spotify...',
             days: 30,
             image: 'images/spotify.jpg',
             price: 169
@@ -2374,6 +2374,7 @@
           {
             name: 'Разное',
             description: 'В разделе "Разное" вы можете предложить для оплаты нужный вам сервис на любой период путём обращения в нашу поддержку.',
+            strickDescription: 'В разделе "Разное" вы можете предложить для оплаты нужный вам сервис на любой период путём обращения в нашу поддержку.',
             days: 30,
             image: 'images/misc.png',
             price: 0
@@ -2412,7 +2413,7 @@
                 h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center' } }, [
                   h('img', { src: product.image, alt: product.name, className: 'product-image' }),
                   product.price > 0 && h('p', { 
-                    style: { fontSize: '16px', fontWeight: 'bold', margin: '8px 0 8px -10px', textAlign: 'center' } 
+                    style: { fontSize: '20px', fontWeight: 'bold', margin: '8px 0 8px -10px', textAlign: 'center' } 
                   }, `${product.price} ₽`)
                 ]),
                 h('div', null, [
